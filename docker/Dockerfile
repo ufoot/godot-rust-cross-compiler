@@ -1,11 +1,12 @@
-# Inspired from:
-# https://gist.github.com/extrawurst/ae3fd3ef152a878acfdc860db025e886
-# https://github.com/godotengine/godot/blob/3.2/misc/dist/docker/scripts/install-android-tools
+# Godot Rust Cross Compiler
+# -------------------------
+#
+# See https://github.com/ufoot/godot-rust-cross-compiler for details
 
 FROM ubuntu:focal
 
 MAINTAINER Christian Mauduit "ufoot@ufoot.org"
-LABEL package="godot-rust-cross-compile" version="0.2.1" description="An image to cross-compile to Android, Mac OS, etc. your Godot Rust-based libraries."
+LABEL package="godot-rust-cross-compile" version="0.2.1" description="An image to cross-compile to Windows, Android, Mac OS X and Linux your godot-rust based libraries."
 
 # Prepare the system, install Debian packages
 # -------------------------------------------
@@ -69,7 +70,6 @@ ENV PATH /root/.cargo/bin:$PATH
 
 RUN rustup target add \
     x86_64-pc-windows-gnu \
-    i686-pc-windows-gnu \
     aarch64-linux-android \
     armv7-linux-androideabi \
     x86_64-linux-android \

@@ -5,8 +5,8 @@ What is this?
 -------------
 
 This is just a toy project to show how to cross-compile programs
-on different platforms when using [Godot](https://godotengine.org)
-and [Rust](https://www.rust-lang.org). This is possibly with the help
+on different platforms using [Godot](https://godotengine.org)
+and [Rust](https://www.rust-lang.org). This is possible with the help
 of [godot-rust](https://godot-rust.github.io/).
 
 There are already plenty of resources on the Internet, to learn
