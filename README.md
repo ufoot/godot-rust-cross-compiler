@@ -12,6 +12,10 @@ of [godot-rust](https://godot-rust.github.io/).
 There are already plenty of resources on the Internet, to learn
 how to do this yourself, included, but not limited to:
 
+- https://godot-rust.github.io/book/exporting/android.html
+- https://ghotiphud.github.io/rust/android/cross-compiling/2016/01/06/compiling-rust-to-android.html
+- https://github.com/tpoechtrager/osxcross
+- https://doc.rust-lang.org/cargo/reference/config.html
 - https://gist.github.com/extrawurst/ae3fd3ef152a878acfdc860db025e886
 - https://github.com/godotengine/godot/blob/3.2/misc/dist/docker/scripts/install-android-tools
 - ...
@@ -63,6 +67,7 @@ the files from one place to the other.
 
 Long story made short: any time you make a change in the Rust code,
 you need to issue a `make` command at the root of the repo.
+
 This is tested under Linux and Mac OS X, I have no idea how it would
 work for MS-Windows (help needed, I was not able to setup a working
 environnement on MS-Windows).
