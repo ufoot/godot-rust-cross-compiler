@@ -111,7 +111,6 @@ RUN find $ANDROID_NDK_PATH -name i686-linux-android21-clang++ -printf 'linker = 
 RUN echo >> /root/.cargo/config
 
 ENV ANDROID_SDK_ROOT=$ANDROID_NDK_PATH
-ENV PATH=$PATH:$ANDROID_SDK_PATH/tools:$ANDROID_NDK_PATH/build/tools
 
 # Install OSX cross build env
 # ---------------------------
@@ -144,8 +143,8 @@ RUN echo >> /root/.cargo/config
 ENV GODOT_VERSION=3.2.3
 ARG GODOT_BASE_URL=https://downloads.tuxfamily.org/godotengine
 WORKDIR /opt/godotengine
-RUN for i in x11 linux_headless linux_server ; do echo download $i ; wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION/Godot_v$GODOT_VERSION-stable_$i.64.zip ; done && rm *.zip
-RUN for i in x11 linux_headless linux_server ; do echo download mono_${i} ; wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION/mono/Godot_v$GODOT_VERSION-stable_mono_${i}_64.zip ; done && rm *.zip
+RUN for i in x11 linux_headless linux_server ; do wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION/Godot_v$GODOT_VERSION-stable_$i.64.zip ; done && for i in *.zip ; do unzip -q $i ; done && rm *.zip
+RUN for i in x11 linux_headless linux_server ; do wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION/mono/Godot_v$GODOT_VERSION-stable_mono_${i}_64.zip ; done && for i in *.zip ; do unzip -q $i ; done && rm *.zip
 RUN ln -s Godot_v$GODOT_VERSION-stable_x11.64 godot3
 RUN ln -s Godot_v$GODOT_VERSION-stable_x11.64 godot
 ENV PATH=$GODOT_DIR:$PATH

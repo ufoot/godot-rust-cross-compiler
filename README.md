@@ -81,6 +81,7 @@ this [Dockerfile](https://github.com/ufoot/godot-rust-cross-compiler/blob/master
 Quick usage:
 
 ```sh
+# cd to your Rust source tree, where you would run `cargo build`
 docker run -v $(pwd):/build ufoot/godot-rust-cross-compile cargo build --release --target aarch64-linux-android
 ```
 
@@ -291,7 +292,7 @@ On top of the C cross-compilers, the [docker image](https://hub.docker.com/repos
 prove useful:
 
 * [mono](https://www.mono-project.com/): this way you can compile [C#](https://docs.microsoft.com/en-us/dotnet/csharp/) code.
-* [nunit](https://nunit.org/): this is a standard unit test framework, having it installed makes it possible to test code which does not need the whole Godot context.
+* [nunit](https://nunit.org/): this is a standard unit test framework, having it installed makes it possible to test [C#](https://docs.microsoft.com/en-us/dotnet/csharp/) code which does not need the whole Godot context.
 * [Xvfb](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml): this is a virtual framebuffer X server, it can be used to actually launch a real Godot program on a CI server. Sometimes running headless is enough, but sometimes you want to test the real thing. Xvfb makes this possible.
 * [uber-apk-signer](https://github.com/patrickfav/uber-apk-signer): this tool helps signing Android APKs. While it is not strictly required to build and even sign a package, it is lightweight and really handy to have.
 * [vim](https://www.vim.org/): because being stuck in a container with no proper editor is no fun.
