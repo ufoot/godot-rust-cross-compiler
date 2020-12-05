@@ -65,6 +65,16 @@ RUN wget -q $ANDROID_NDK_URL && unzip -q $ANDROID_NDK_FILENAME && rm $ANDROID_ND
 RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
 ENV PATH /root/.cargo/bin:$PATH
 
+# Install uber APK signer
+# -----------------------
+
+ARG UBER_APK_SIGNER_VERSION=1.2.1
+ARG UBER_APK_SIGNER_BASE_URL=https://github.com/patrickfav/uber-apk-signer/releases/download/v$UBER_APK_SIGNER_VERSION
+ARG UBER_APK_SIGNER_FILENAME=uber-apk-signer-$UBER_APK_SIGNER_VERSION.jar
+ARG UBER_APK_SIGNER_URL=$UBER_APK_SIGNER_BASE_URL/$UBER_APK_SIGNER_FILENAME
+WORKDIR $ANDROID_BUILD_TOOLS_PATH
+RUN wget -q $UBER_APK_SIGNER_URL && ln -s $UBER_APK_SIGNER_FILENAME uber-apk-signer.jar
+
 # Install Rust
 # ------------
 
