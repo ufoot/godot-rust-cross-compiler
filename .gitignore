@@ -1,5 +1,5 @@
 # Cross-compiling mounts
-.cross-compile
+cross-compile-cache
 
 # Rust
 target
