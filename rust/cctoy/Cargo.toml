@@ -1,0 +1,14 @@
+[package]
+name = "cctoy"
+version = "0.1.0"
+authors = ["Christian Mauduit (ufoot) <ufoot@ufoot.org>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gdnative = { git = "https://github.com/godot-rust/godot-rust", rev = "529a2fc0" }
+withgdnative = { path = "../withgdnative" }
+
+[lib]
+crate-type = ["cdylib"]

@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "purelib",
+    "withgdnative",
+    "cctoy",
+]
