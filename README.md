@@ -75,4 +75,74 @@ environnement on MS-Windows).
 Cross Compiler Docker Image
 ---------------------------
 
+The [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compile) is defined in
+this [Dockerfile](https://github.com/ufoot/godot-rust-cross-compiler/blob/master/docker/Dockerfile)
+
+Quick usage:
+
+```sh
+docker run -v $(pwd):/build ufoot/godot-rust-cross-compile cargo build --release --target aarch64-linux-android
+```
+
+This will build an arm64 build of a Rust library,
+suitable for use on a typical Android phone.
+
+Explanation:
+
+* `docker run`: that runs [Docker](https://www.docker.com/)
+* `-v $(pwd):/build`: this mounts the current work directory into `/build`. The image expects the code to be in `/build` so this is how your host communicates with the container. In other words anything which is in `./` on your computer will end up in `/build/` on the container, and this is where the compiler in invoked, within the container.
+* `ufoot/godot-rust-cross-compile`: this is the name of the Docker image to call.
+* `cargo build`: this is the standard [cargo](https://doc.rust-lang.org/cargo/) command used to build Rust programes. You could also issue `cargo test` or anything.
+* `--release`: when cross-compiling, most of the time, you want to release something, debug mode is (usually) more for local testing. So a typical cross build has `--release` as flag, to tell the compiler to build the optimized version.
+* `--target aarch64-linux-android`: this tells the compiler to compile for an Arm64 processor, running a Linux kernel, with an Android system. This is what you want to target recent Android phones.
+
+But... wait, why do I need a dedicated image to do this? This simple command should do the job:
+
+```sh
+rustup target add aarch64-linux-android     # should be done just once
+cargo build --target aarch64-linux-android  # use standard toolchain, plain simple
+```
+
+Well, if you just want to build some *pure Rust* code, this is all it takes.
+Indeed Rust cross-platform support is amazing, and the above works,
+on any platform able to run Rust.
+
+However, in the specific case of [godot-rust](https://godot-rust.github.io/)
+you need to compile and link a few bits of native code. Long story made short,
+this is because Godot is not a pure Rust program, rather a C++ program
+which supports Rust as an extension language.
+
+Anyway, on top of being able to produce Rust compiled code for your target
+platform, you also need to have a working standard C compiler,
+typically [GCC](https://gcc.gnu.org/) or [Clang](https://clang.llvm.org/).
+And *THIS* is where things get complex. Because there is no such thing
+as a universal, easy-to-install, cross-platform compiler, with working
+headers and libraries, which compiles
+from Linux to Windows, Android, and Mac OS X.
+
+As a side note, it is exactly because this is so hard that languages such
+as [Rust](https://www.rust-lang.org) or [Go](https://golang.org/)
+did invest so much energy into standard build toolchains.
+
+So the docker image provided here just bundles, together on a single
+image, some working cross-compilers, which options, headers and libraries
+set up the right way to properly build your Godot + Rust application.
+
+As a good side effect of using a Docker image, this can be re-used
+in most CI systems such as [Travis](https://www.travis-ci.org) or
+or [Gitlab](https://gitlab.com).
+
+Building for Windows
+--------------------
+
+[TODO...]
+
+Building for Android
+--------------------
+
+[TODO...]
+
+Building for Linux
+------------------
+
 [TODO...]
