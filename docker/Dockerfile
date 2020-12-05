@@ -26,7 +26,7 @@ RUN apt-get install -yq \
     ca-certificates default-jre-headless \
     godot3 mono-devel \
     libsaxon-java nunit xvfb \
-    vim \
+    vim emacs-nox \
     && apt-get clean
 
 ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64
@@ -47,7 +47,7 @@ ARG ANDROID_SDK_PATH=$ANDROID_BUILD_TOOLS_PATH/$ANDROID_SDK_DIR
 
 # https://dl.google.com/android/android-sdk_r24.4.1-linux.tgz
 RUN echo install $ANDROID_SDK_URL
-RUN wget -q $ANDROID_SDK_URL && tar -xzf $ANDROID_SDK_FILENAME && rm $ANDROID_SDK_FILENAME
+RUN wget -nc -nv $ANDROID_SDK_URL && tar -xzf $ANDROID_SDK_FILENAME && rm $ANDROID_SDK_FILENAME
 
 # Install android NDK
 # -------------------
@@ -60,7 +60,7 @@ ARG ANDROID_NDK_PATH=$ANDROID_BUILD_TOOLS_PATH/$ANDROID_NDK_DIR
 
 # https://dl.google.com/android/repository/android-ndk-r21d-linux-x86_64.zip
 RUN echo install $ANDROID_NDK_URL
-RUN wget -q $ANDROID_NDK_URL && unzip -q $ANDROID_NDK_FILENAME && rm $ANDROID_NDK_FILENAME
+RUN wget -nc -nv $ANDROID_NDK_URL && unzip -q $ANDROID_NDK_FILENAME && rm $ANDROID_NDK_FILENAME
 
 RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
 ENV PATH /root/.cargo/bin:$PATH
@@ -73,7 +73,7 @@ ARG UBER_APK_SIGNER_BASE_URL=https://github.com/patrickfav/uber-apk-signer/relea
 ARG UBER_APK_SIGNER_FILENAME=uber-apk-signer-$UBER_APK_SIGNER_VERSION.jar
 ARG UBER_APK_SIGNER_URL=$UBER_APK_SIGNER_BASE_URL/$UBER_APK_SIGNER_FILENAME
 WORKDIR $ANDROID_BUILD_TOOLS_PATH
-RUN wget -q $UBER_APK_SIGNER_URL && ln -s $UBER_APK_SIGNER_FILENAME uber-apk-signer.jar
+RUN wget -nc -nv $UBER_APK_SIGNER_URL && ln -s $UBER_APK_SIGNER_FILENAME uber-apk-signer.jar
 
 # Install Rust
 # ------------
@@ -127,7 +127,7 @@ RUN git clone https://github.com/tpoechtrager/osxcross
 WORKDIR $OSXCROSS_PATH
 RUN git checkout $OSXCROSS_COMMIT
 RUN echo install $MACOSX_SDK_BASE_URL/$MACOSX_SDK_FILENAME
-RUN wget -q $MACOSX_SDK_BASE_URL/$MACOSX_SDK_FILENAME
+RUN wget -nc -nv $MACOSX_SDK_BASE_URL/$MACOSX_SDK_FILENAME
 RUN mv $MACOSX_SDK_FILENAME tarballs/
 RUN UNATTENDED=yes OSX_VERSION_MIN=10.7 TARGET_DIR=$MACOSX_CROSS_COMPILER_PATH ./build.sh 2>&1 | tee build.log
 
@@ -138,11 +138,27 @@ RUN echo "[target.x86_64-apple-darwin]" >> /root/.cargo/config
 RUN find $MACOSX_CROSS_COMPILER_PATH -name x86_64-apple-darwin14-cc -printf 'linker = "%p"\n' >> /root/.cargo/config
 RUN echo >> /root/.cargo/config
 
+# Install all flavors of Godot
+# ----------------------------
+
+ENV GODOT_VERSION=3.2.3
+ARG GODOT_BASE_URL=https://downloads.tuxfamily.org/godotengine
+WORKDIR /opt/godotengine
+RUN for i in x11 linux_headless linux_server ; do echo download $i ; wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION/Godot_v$GODOT_VERSION-stable_$i.64.zip ; done && rm *.zip
+RUN for i in x11 linux_headless linux_server ; do echo download mono_${i} ; wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION/mono/Godot_v$GODOT_VERSION-stable_mono_${i}_64.zip ; done && rm *.zip
+RUN ln -s Godot_v$GODOT_VERSION-stable_x11.64 godot3
+RUN ln -s Godot_v$GODOT_VERSION-stable_x11.64 godot
+ENV PATH=$GODOT_DIR:$PATH
+
 # Work in /build
 # --------------
 
 WORKDIR /build
 
 # Example usage:
-# docker run -v $(pwd):/build godot-rust-cross-compile cargo build --release --target aarch64-linux-android
-# docker run -v $(pwd):/build godot-rust-cross-compile cargo build -v/tmp/.cargo/git:/root/.cargo/git -v/tmp/.cargo/registry:/root/.cargo/registry --release --target aarch64-linux-android
+# docker run -v $(pwd):/build ufoot/godot-rust-cross-compile cargo build --release --target aarch64-linux-android
+#
+# Using a cache:
+# install -d /tmp/.cargo/git
+# install -d /tmp/.cargo/registry
+# docker run -v $(pwd):/build ufoot/godot-rust-cross-compile -v/tmp/.cargo/git:/root/.cargo/git -v/tmp/.cargo/registry:/root/.cargo/registry ufoot/godot-rust-cross-compile cargo build --release --target aarch64-linux-android

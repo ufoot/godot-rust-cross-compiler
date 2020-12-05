@@ -1,3 +1,4 @@
+# replace cctoy with the name of your library
 GRCC_GODOT_RUST_LIB_NAME=cctoy
 include grcc.mk
 

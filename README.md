@@ -62,7 +62,7 @@ and it encourages a minimal use of dependencies, avoiding that `import the world
 
 Since the Godot project and the Rust source code are in different folders,
 at some point, some magic is needed to tell Godot where the Rust libraries are.
-There are many ways to do this, I chose to rely on a [Makefile](https://github.com/ufoot/godot-rust-cross-compiler/blob/master/Makefile) and copy
+There are many ways to do this, I chose to rely on a [Makefile](https://github.com/ufoot/godot-rust-cross-compiler/blob/master/grcc.mk) and copy
 the files from one place to the other.
 
 Long story made short: any time you make a change in the Rust code,
@@ -135,14 +135,201 @@ or [Gitlab](https://gitlab.com).
 Building for Windows
 --------------------
 
-[TODO...]
+To build from the container to Windows, you need to specify
+where the Windows specific headers are:
+
+```sh
+docker run -v $(pwd):/build -e C_INCLUDE_PATH=/usr/x86_64-w64-mingw32/include ufoot/godot-rust-cross-compile cargo build --release --target x86_64-pc-windows-gnu
+```
+
+Please note that `-e C_INCLUDE_PATH=/usr/x86_64-w64-mingw32/include` option
+which tells Docker to set the `C_INCLUDE_PATH` env var to the correct
+path of `/usr/x86_64-w64-mingw32/include`, which in turns contains the
+platform specific headers. Those are shipped with [mingw](http://mingw-w64.org)
+so it is just a matter of installing the right `.deb` or `.rpm` package
+and then setting this include path correctly.
+
+Only 64-bit is supported for now, 32-bit linking raised errors.
+Any help welcome.
 
 Building for Android
 --------------------
 
-[TODO...]
+Initially, this is what motivated that image, as in practice for Android
+cross-compiling is not an option, but a requirement.
+
+Hopefully, the docker image makes it simple:
+
+```sh
+docker run -v $(pwd):/build cargo build ufoot/godot-rust-cross-compile --release --target aarch64-linux-android
+```
+
+For Android, 4 architectures are supported:
+
+  * `aarch64-linux-android`: Android, 64-bit ARM (standard Android phones)
+  * `armv7-linux-androideabi`: Android, 32-bit ARM (older Android phones)
+  * `x86_64-linux-android`: Android, 64-bit Intel
+  * `i686-linux-android`: Android, 32-bit Intel
+
+Under the hood, the Docker image does a few things:
+
+* install the [Android SDK](https://developer.android.com/studio), which is not even that easy, as now it is supposed to be part of the Android Studio, but we have no interest in that fancy UI, just need a few core components.
+* install the [Android NDK](https://developer.android.com/ndk), which is possibly the most important component as it contains the actual C compiler. *IMPORTANT NOTE* I spent a crazy amount of time trying to have GCC work, in the end I used Clang and it worked much more smoothly. I suspect GCC needs a bit of love and special options to properly find its headers and libraries.
+* define the `JAVA_HOME` and `ANDROID_SDK_ROOT` env var.
+* override the Rust linker so that it uses `clang` from the NDK, and not the default `ld` of the system. This is possibly the hardest step, as it is not very intuitive and examples are rare on the web. Basically what it amounts to is put in the file `$HOME/.cargo/config` a content like:
+
+```toml
+[target.aarch64-linux-android]
+linker = "/opt/android-build-tools/android-ndk-r21d/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++"
+
+[target.armv7-linux-androideabi]
+linker = "/opt/android-build-tools/android-ndk-r21d/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang++"
+
+[target.x86_64-linux-android]
+linker = "/opt/android-build-tools/android-ndk-r21d/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang++"
+
+[target.i686-linux-android]
+linker = "/opt/android-build-tools/android-ndk-r21d/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android21-clang++"
+```
+
+Note that depending on the versions, the NDK are organized in radically
+different ways, so any change in the NDK version might require some
+heavylifting change in all those scripts.
+
+Building for Mac OS X
+---------------------
+
+In theory this should be simple, in practice it is hard because Apple
+development toolkits are proprietary and uneasy to install outside OS X.
+
+```sh
+docker run -v $(pwd):/build -e CC=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin14-cc -e C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX10.10.sdk/usr/include ufoot/godot-rust-cross-compile cargo build --release --target x86_64-apple-darwin
+```
+
+So here, two overrides are needed:
+
+* `-e CC=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin14-cc`: this tells the system to use a specific, dedicated cross-compiler. Your standard GCC or Clang will not work.
+* `-e C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX10.10.sdk/usr/include`: gives the compiler a place to search for specific OS X headers. This solves the dreaded `fatal error: 'TargetConditionals.h' file not found` error.
+
+Only 64-bit Intels are supported, 32-bit hardware are too old anyway
+and backward compatibility does not even make sense for them, Apple
+dropped any kind of practical support for them. No clue on how easy
+or hard it will be to support the upcoming ARM architectures.
+
+Under the hood, the Docker image does a few things:
+
+* use [osxcross](https://github.com/tpoechtrager/osxcross) to install the cross-compiler. Without this, nothing would work.
+* override the Rust linker so that it uses the linker provided by `osxcross`, and not the default `ld` of the system. Typically, `$HOME/.cargo/config` should contain:
+
+```toml
+[target.x86_64-apple-darwin]
+linker = "/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin14-cc"
+```
+
+The current build uses a SDK from [Mac OS X 10.10](https://en.wikipedia.org/wiki/OS_X_Yosemite) (Yosemite, 2014).
 
 Building for Linux
 ------------------
 
-[TODO...]
+Similar to other platforms:
+
+```sh
+docker run -v $(pwd):/build cargo build ufoot/godot-rust-cross-compile --release --target x86_64-unknown-linux-gnu
+```
+
+Only Intel 64-bit and 32-bit are supported, mostly because those are
+the only choices offered by the Godot Linux export template. But in theory,
+any architecture should work, only the Rust toolchain bundled in the
+containter does not support them as is.
+
+Example Makefile
+----------------
+
+While using the [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compile) saves time, in practice, on a real-world project,
+manually giving options for compilers (think of Mac OS X or Windows which
+require compiler or headers overrides) is tiring and error-prone.
+
+Also most of the time once the library is compiled it is convenient to
+have it installed in the right place within your Godot project.
+
+To automate this, on the toy project, I have set up:
+
+* a very simple [Makefile](https://github.com/ufoot/godot-rust-cross-compiler/blob/master/Makefile)
+* which includes another Makefile named [grcc.mk](https://github.com/ufoot/godot-rust-cross-compiler/blob/master/grcc.mk)
+
+Use at your own risk, I know Makefiles are not trendy, there are many
+other tools such as [SCons](https://www.scons.org/), [Ninja](https://ninja-build.org/), [Rake](http://docs.seattlerb.org/rake/), [Gradle](https://gradle.org/), [Bazel](https://bazel.build/), etc. I have used those, some of them with "professional proficiency" but for the sake of building small Godot Rust apps, I think good old [GNU Make](https://www.gnu.org/software/make/) is good enough.
+
+Think of this as [an example](https://github.com/ufoot/godot-rust-cross-compiler/blob/master/grcc.mk) of how to use the docker image. A typical usage would beto put in your main `Makefile`:
+
+```mk
+# replace cctoy with the name of your library
+GRCC_GODOT_RUST_LIB_NAME=cctoy
+include grcc.mk
+```
+
+Caching builds
+--------------
+
+Using the docker image, a fresh `$HOME` directory is used at each start,
+and this causes `cargo` to actually pull dependencies and rebuild them
+at each build. This slows down things, especially when your project
+grows in size and deps.
+
+A workaround (used in the [example Makefile](https://github.com/ufoot/godot-rust-cross-compiler/blob/master/grcc.mk) is to mount `$HOME/.cargo/git` and `$HOME/.cargo/registry` to local folders on your host. For example:
+
+```sh
+install -d /tmp/.cargo/git       # run this only once
+install -d /tmp/.cargo/registry  # run this only once
+docker run -v $(pwd):/build ufoot/godot-rust-cross-compile -v/tmp/.cargo/git:/root/.cargo/git -v/tmp/.cargo/registry:/root/.cargo/registry ufoot/godot-rust-cross-compile cargo build --release --target aarch64-linux-android
+```
+
+Extra bounties
+--------------
+
+On top of the C cross-compilers, the [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compile) bundles a few tools which can
+prove useful:
+
+* [mono](https://www.mono-project.com/): this way you can compile [C#](https://docs.microsoft.com/en-us/dotnet/csharp/) code.
+* [nunit](https://nunit.org/): this is a standard unit test framework, having it installed makes it possible to test code which does not need the whole Godot context.
+* [Xvfb](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml): this is a virtual framebuffer X server, it can be used to actually launch a real Godot program on a CI server. Sometimes running headless is enough, but sometimes you want to test the real thing. Xvfb makes this possible.
+* [uber-apk-signer](https://github.com/patrickfav/uber-apk-signer): this tool helps signing Android APKs. While it is not strictly required to build and even sign a package, it is lightweight and really handy to have.
+* [vim](https://www.vim.org/): because being stuck in a container with no proper editor is no fun.
+* [GNU Emacs](https://www.gnu.org/software/emacs/): because I can't live without it.
+* [Godot](https://godotengine.org) in 6 flavors (with/without Mono support, and with default, headless and server variants), so that you can easily run tests, export builds, etc.
+
+Bugs and limitations
+--------------------
+
+* only a few archs supported, more specifically:
+  * no iOS support
+  * 32-bit support not working on Windows
+* everything runs as `root` in the container, consequently some files might be generated as `user:root` on your system, cleaning them requires `sudo` or other inconvenient hacks
+* `[YOUR BUG HERE]`
+
+License
+-------
+
+[MIT](https://github.com/ufoot/godot-rust-cross-compiler/blob/master/LICENSE.txt)
+
+```
+Copyright (c) 2020 Christian Mauduit <ufoot@ufoot.org>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
