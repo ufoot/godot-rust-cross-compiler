@@ -301,6 +301,7 @@ prove useful:
 * [uber-apk-signer](https://github.com/patrickfav/uber-apk-signer): this tool helps signing Android APKs. While it is not strictly required to build and even sign a package, it is lightweight and really handy to have.
 * [vim](https://www.vim.org/): because being stuck in a container with no proper editor is no fun.
 * [Godot](https://godotengine.org) in 6 flavors (with/without Mono support, and with default, headless and server variants), so that you can easily run tests, export builds, etc.
+* [Godot export templates](https://docs.godotengine.org/en/stable/getting_started/workflow/export/exporting_projects.html), so that you can run `godot_headless --export` and build final end-user friendly packages from CI.
 
 Bugs and limitations
 --------------------
