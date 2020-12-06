@@ -1,6 +1,6 @@
 2020-12-06  Christian Mauduit <ufoot@ufoot.org>
 
-	* Version 0.2.2, proper symlinks on Godot executables.
+	* Version 0.2.2, fixed symlinks, local build without docker.
 
 2020-12-05  Christian Mauduit <ufoot@ufoot.org>
 
