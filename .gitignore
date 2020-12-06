@@ -1,6 +1,9 @@
 # Cross-compiling mounts
 cross-compile-cache
 
+# CI builds
+/export
+
 # Rust
 target
 debug

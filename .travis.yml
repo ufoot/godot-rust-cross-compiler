@@ -2,4 +2,4 @@ language: c
 
 services: docker
 
-script: make cross
+script: make export
