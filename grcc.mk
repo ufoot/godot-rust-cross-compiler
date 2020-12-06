@@ -45,7 +45,7 @@
 
 grcc-all: grcc-native
 
-grcc-native: grcc-test grcc-debug grcc-release grcc-copy-local
+grcc-native: grcc-test grcc-debug grcc-copy-local
 
 grcc-cross: grcc-test grcc-lib-all grcc-copy-all
 
