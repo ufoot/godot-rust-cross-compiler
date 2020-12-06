@@ -28,7 +28,7 @@ and fine-tuning the whole process so that "it compiles" is not trivial.
 So this project exposes:
 
 * a dummy toy Godot application making use of the Godot rust bindings.
-* a [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compile) which can be used to compile the rust libraries on several platforms:
+* a [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compiler) which can be used to compile the rust libraries on several platforms:
   * `x86_64-pc-windows-gnu`: MS-Windows, 64-bit Intel (standard Windows computers)
   * `aarch64-linux-android`: Android, 64-bit ARM (standard Android phones)
   * `armv7-linux-androideabi`: Android, 32-bit ARM (older Android phones)
@@ -40,7 +40,7 @@ So this project exposes:
 
 The toy app can serve as an example on how to build an app with Godot and Rust.
 
-The [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compile) can be used to build your own projects, without having to setup the whole toolchain. It is just there, ready to use.
+The [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compiler) can be used to build your own projects, without having to setup the whole toolchain. It is just there, ready to use.
 
 Cross Compiler Toy
 ------------------
@@ -75,14 +75,14 @@ environnement on MS-Windows).
 Cross Compiler Docker Image
 ---------------------------
 
-The [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compile) is defined in
+The [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compiler) is defined in
 this [Dockerfile](https://github.com/ufoot/godot-rust-cross-compiler/blob/master/docker/Dockerfile)
 
 Quick usage:
 
 ```sh
 # cd to your Rust source tree, where you would run `cargo build`
-docker run -v $(pwd):/build ufoot/godot-rust-cross-compile cargo build --release --target aarch64-linux-android
+docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler cargo build --release --target aarch64-linux-android
 ```
 
 This will build an arm64 build of a Rust library,
@@ -92,7 +92,7 @@ Explanation:
 
 * `docker run`: that runs [Docker](https://www.docker.com/)
 * `-v $(pwd):/build`: this mounts the current work directory into `/build`. The image expects the code to be in `/build` so this is how your host communicates with the container. In other words anything which is in `./` on your computer will end up in `/build/` on the container, and this is where the compiler in invoked, within the container.
-* `ufoot/godot-rust-cross-compile`: this is the name of the Docker image to call.
+* `ufoot/godot-rust-cross-compiler`: this is the name of the Docker image to call.
 * `cargo build`: this is the standard [cargo](https://doc.rust-lang.org/cargo/) command used to build Rust programes. You could also issue `cargo test` or anything.
 * `--release`: when cross-compiling, most of the time, you want to release something, debug mode is (usually) more for local testing. So a typical cross build has `--release` as flag, to tell the compiler to build the optimized version.
 * `--target aarch64-linux-android`: this tells the compiler to compile for an Arm64 processor, running a Linux kernel, with an Android system. This is what you want to target recent Android phones.
@@ -140,7 +140,7 @@ To build from the container to Windows, you need to specify
 where the Windows specific headers are:
 
 ```sh
-docker run -v $(pwd):/build -e C_INCLUDE_PATH=/usr/x86_64-w64-mingw32/include ufoot/godot-rust-cross-compile cargo build --release --target x86_64-pc-windows-gnu
+docker run -v $(pwd):/build -e C_INCLUDE_PATH=/usr/x86_64-w64-mingw32/include ufoot/godot-rust-cross-compiler cargo build --release --target x86_64-pc-windows-gnu
 ```
 
 Please note that `-e C_INCLUDE_PATH=/usr/x86_64-w64-mingw32/include` option
@@ -162,7 +162,7 @@ cross-compiling is not an option, but a requirement.
 Hopefully, the docker image makes it simple:
 
 ```sh
-docker run -v $(pwd):/build cargo build ufoot/godot-rust-cross-compile --release --target aarch64-linux-android
+docker run -v $(pwd):/build cargo build ufoot/godot-rust-cross-compiler --release --target aarch64-linux-android
 ```
 
 For Android, 4 architectures are supported:
@@ -204,7 +204,7 @@ In theory this should be simple, in practice it is hard because Apple
 development toolkits are proprietary and uneasy to install outside OS X.
 
 ```sh
-docker run -v $(pwd):/build -e CC=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin14-cc -e C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX10.10.sdk/usr/include ufoot/godot-rust-cross-compile cargo build --release --target x86_64-apple-darwin
+docker run -v $(pwd):/build -e CC=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin14-cc -e C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX10.10.sdk/usr/include ufoot/godot-rust-cross-compiler cargo build --release --target x86_64-apple-darwin
 ```
 
 So here, two overrides are needed:
@@ -235,7 +235,7 @@ Building for Linux
 Similar to other platforms:
 
 ```sh
-docker run -v $(pwd):/build cargo build ufoot/godot-rust-cross-compile --release --target x86_64-unknown-linux-gnu
+docker run -v $(pwd):/build cargo build ufoot/godot-rust-cross-compiler --release --target x86_64-unknown-linux-gnu
 ```
 
 Only Intel 64-bit and 32-bit are supported, mostly because those are
@@ -246,7 +246,7 @@ containter does not support them as is.
 Example Makefile
 ----------------
 
-While using the [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compile) saves time, in practice, on a real-world project,
+While using the [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compiler) saves time, in practice, on a real-world project,
 manually giving options for compilers (think of Mac OS X or Windows which
 require compiler or headers overrides) is tiring and error-prone.
 
@@ -269,7 +269,7 @@ GRCC_GODOT_RUST_LIB_NAME=cctoy
 include grcc.mk
 ```
 
-Another feature of this `Makefile`: it detects whether `/opt/godot-ruse-cross-compiler.txt` is present,
+Another feature of this `Makefile`: it detects whether `/opt/godot-rust-cross-compiler.txt` is present,
 and if it is there, it does not launch docker but builds natively. This way, a CI script can invoke
 the targets as you would locally, without "running docker within docker".
 
@@ -286,13 +286,13 @@ A workaround (used in the [example Makefile](https://github.com/ufoot/godot-rust
 ```sh
 install -d /tmp/.cargo/git       # run this only once
 install -d /tmp/.cargo/registry  # run this only once
-docker run -v $(pwd):/build ufoot/godot-rust-cross-compile -v/tmp/.cargo/git:/root/.cargo/git -v/tmp/.cargo/registry:/root/.cargo/registry ufoot/godot-rust-cross-compile cargo build --release --target aarch64-linux-android
+docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler -v/tmp/.cargo/git:/root/.cargo/git -v/tmp/.cargo/registry:/root/.cargo/registry ufoot/godot-rust-cross-compiler cargo build --release --target aarch64-linux-android
 ```
 
 Extra bounties
 --------------
 
-On top of the C cross-compilers, the [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compile) bundles a few tools which can
+On top of the C cross-compilers, the [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compiler) bundles a few tools which can
 prove useful:
 
 * [mono](https://www.mono-project.com/): this way you can compile [C#](https://docs.microsoft.com/en-us/dotnet/csharp/) code.

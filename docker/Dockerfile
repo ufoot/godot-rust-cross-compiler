@@ -7,7 +7,7 @@ FROM ubuntu:focal
 
 MAINTAINER Christian Mauduit "ufoot@ufoot.org"
 ENV GRCC_VERSION=0.2.2
-LABEL package="godot-rust-cross-compile" version="$GRCC_VERSION" description="An image to cross-compile to Windows, Android, Mac OS X and Linux your godot-rust based libraries."
+LABEL package="godot-rust-cross-compiler" version="$GRCC_VERSION" description="An image to cross-compile to Windows, Android, Mac OS X and Linux your godot-rust based libraries."
 
 # Prepare the system, install Debian packages
 # -------------------------------------------
@@ -179,9 +179,9 @@ RUN echo $GRCC_VERSION > godot-rust-cross-compiler.txt
 WORKDIR /build
 
 # Example usage:
-# docker run -v $(pwd):/build ufoot/godot-rust-cross-compile cargo build --release --target aarch64-linux-android
+# docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler cargo build --release --target aarch64-linux-android
 #
 # Using a cache:
 # install -d /tmp/.cargo/git
 # install -d /tmp/.cargo/registry
-# docker run -v $(pwd):/build ufoot/godot-rust-cross-compile -v/tmp/.cargo/git:/root/.cargo/git -v/tmp/.cargo/registry:/root/.cargo/registry ufoot/godot-rust-cross-compile cargo build --release --target aarch64-linux-android
+# docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler -v/tmp/.cargo/git:/root/.cargo/git -v/tmp/.cargo/registry:/root/.cargo/registry ufoot/godot-rust-cross-compiler cargo build --release --target aarch64-linux-android
