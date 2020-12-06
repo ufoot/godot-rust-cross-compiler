@@ -42,6 +42,11 @@ The toy app can serve as an example on how to build an app with Godot and Rust.
 
 The [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compiler) can be used to build your own projects, without having to setup the whole toolchain. It is just there, ready to use.
 
+Status
+------
+
+[![Build Status](https://travis-ci.org/ufoot/godot-rust-cross-compiler.svg?branch=master)](https://travis-ci.org/ufoot/godot-rust-cross-compiler/branches)
+
 Cross Compiler Toy
 ------------------
 
