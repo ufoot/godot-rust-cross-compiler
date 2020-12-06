@@ -248,7 +248,6 @@ grcc-pkg-macosx: grcc-copy-macosx
 	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_MACOSX_PKG).zip godot/$(GRCC_EXPORT_MACOSX_PKG).zip
 	echo 'for i in warmup real ; do godot_headless --path godot --export "Mac OSX" $(GRCC_EXPORT_MACOSX_PKG).zip ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
 	install -d $(GRCC_EXPORT_DIR) && mv godot/$(GRCC_EXPORT_MACOSX_PKG).zip $(GRCC_EXPORT_DIR)
-	rm godot/lib$(GRCC_GODOT_RUST_LIB_NAME).dylib
 
 grcc-pkg-linux: grcc-copy-linux
 	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_PKG).zip godot/lib
