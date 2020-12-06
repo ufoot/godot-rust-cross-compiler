@@ -8,4 +8,6 @@ test: grcc-test
 
 clean: grcc-clean
 
+native: grcc-native
+
 cross: grcc-cross

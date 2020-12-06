@@ -111,7 +111,7 @@ grcc-target-windows-i64:
 ifeq (yes,$(GRCC_USE_DOCKER))
 	cd rust && $(GRCC_INVOKE_DOCKER) -e C_INCLUDE_PATH=$(GRCC_WINDOWS_MINGW_HEADERS) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_WINDOWS_I64_TARGET)
 else
-	C_INCLUDE_PATH=$(GRCC_WINDOWS_MINGW_HEADERS) cd rust && cargo build --release --target $(GRCC_WINDOWS_I64_TARGET)
+	export C_INCLUDE_PATH=$(GRCC_WINDOWS_MINGW_HEADERS) cd rust && cargo build --release --target $(GRCC_WINDOWS_I64_TARGET)
 endif
 
 grcc-target-android: grcc-target-android-arm64 grcc-target-android-arm32 grcc-target-android-i64 grcc-target-android-i32
@@ -150,7 +150,7 @@ grcc-target-macosx-i64:
 ifeq (yes,$(GRCC_USE_DOCKER))
 	cd rust && $(GRCC_INVOKE_DOCKER) -e CC=$(GRCC_MACOSX_SDK_CC) -e C_INCLUDE_PATH=$(GRCC_MACOSX_SDK_HEADERS) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_MACOSX_I64_TARGET)
 else
-	CC=$(GRCC_MACOSX_SDK_CC) C_INCLUDE_PATH=$(GRCC_MACOSX_SDK_HEADERS) cd rust && cargo build --release --target $(GRCC_MACOSX_I64_TARGET)
+	export CC=$(GRCC_MACOSX_SDK_CC) C_INCLUDE_PATH=$(GRCC_MACOSX_SDK_HEADERS) cd rust && cargo build --release --target $(GRCC_MACOSX_I64_TARGET)
 endif
 
 grcc-target-linux: grcc-target-linux-i64 grcc-target-linux-i32

@@ -46,7 +46,6 @@ ARG ANDROID_SDK_FILENAME=$ANDROID_SDK_RELEASE-linux.tgz
 ARG ANDROID_SDK_URL=$ANDROID_BASE_URL/$ANDROID_SDK_FILENAME
 ARG ANDROID_SDK_PATH=$ANDROID_BUILD_TOOLS_PATH/$ANDROID_SDK_DIR
 
-RUN echo install $ANDROID_SDK_URL
 RUN wget -nc -nv $ANDROID_SDK_URL && tar -xzf $ANDROID_SDK_FILENAME && rm $ANDROID_SDK_FILENAME
 
 # Install android NDK
@@ -57,10 +56,9 @@ ARG ANDROID_NDK_DIR=$ANDROID_NDK_RELEASE
 ARG ANDROID_NDK_FILENAME=$ANDROID_NDK_RELEASE-linux-x86_64.zip
 ARG ANDROID_NDK_URL=$ANDROID_BASE_URL/repository/$ANDROID_NDK_FILENAME
 ARG ANDROID_NDK_PATH=$ANDROID_BUILD_TOOLS_PATH/$ANDROID_NDK_DIR
+ARG ANDROID_NDK_GCC_VERSION=4.9
 
-# https://dl.google.com/android/repository/android-ndk-r21d-linux-x86_64.zip
-RUN echo install $ANDROID_NDK_URL
-RUN wget -nc -nv $ANDROID_NDK_URL && unzip -q $ANDROID_NDK_FILENAME && rm $ANDROID_NDK_FILENAME
+RUN wget -nc -nv $ANDROID_NDK_URL && unzip -q $ANDROID_NDK_FILENAME && rm $ANDROID_NDK_FILENAME && rm -rf $ANDROID_NDK_PATH/toolchains/*-$ANDROID_NDK_GCC_VERSION
 
 RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
 ENV PATH /root/.cargo/bin:$PATH
@@ -166,6 +164,14 @@ RUN ln -s Godot_v$GODOT_VERSION-stable_x11.64 godot3 && \
     ln -s Godot_v$GODOT_VERSION-stable_mono_linux_server.64 godot3_mono_server/godot3_mono_server && \
     ln -s Godot_v$GODOT_VERSION-stable_mono_linux_server.64 godot_mono_server/godot_mono_server
 ENV PATH=$GODOT_DIR:$GODOT_DIR/godot3_mono:$GODOT_DIR/godot3_mono_headless:$GODOT_DIR/godot3_mono_server:$PATH
+
+# Install Godot export templates
+# ------------------------------
+
+ARG GODOT_TEMPLATE_DIR=/root/.local/share/godot/templates
+WORKDIR $GODOT_TEMPLATE_DIR
+RUN wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION/Godot_v$GODOT_VERSION-stable_export_templates.tpz && unzip -q Godot_v$GODOT_VERSION-stable_export_templates.tpz && rm Godot_v$GODOT_VERSION-stable_export_templates.tpz && mv templates $GODOT_VERSION.stable
+RUN wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION/mono/Godot_v$GODOT_VERSION-stable_mono_export_templates.tpz && unzip -q Godot_v$GODOT_VERSION-stable_mono_export_templates.tpz && rm Godot_v$GODOT_VERSION-stable_mono_export_templates.tpz && mv templates $GODOT_VERSION.stable.mono
 
 # Mark the sytem as being a godot-run-cross-compiler image
 # --------------------------------------------------------
