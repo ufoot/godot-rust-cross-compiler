@@ -1,5 +1,7 @@
 2020-12-06  Christian Mauduit <ufoot@ufoot.org>
 
+	* Version 0.2.3, renamed to -compiler and enabled exports.
+
 	* Version 0.2.2, fixed symlinks, local build without docker.
 
 2020-12-05  Christian Mauduit <ufoot@ufoot.org>
