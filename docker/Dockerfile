@@ -6,7 +6,7 @@
 FROM ubuntu:focal
 
 MAINTAINER Christian Mauduit "ufoot@ufoot.org"
-LABEL package="godot-rust-cross-compile" version="0.2.1" description="An image to cross-compile to Windows, Android, Mac OS X and Linux your godot-rust based libraries."
+LABEL package="godot-rust-cross-compile" version="0.2.2" description="An image to cross-compile to Windows, Android, Mac OS X and Linux your godot-rust based libraries."
 
 # Prepare the system, install Debian packages
 # -------------------------------------------
@@ -142,12 +142,29 @@ RUN echo >> /root/.cargo/config
 
 ENV GODOT_VERSION=3.2.3
 ARG GODOT_BASE_URL=https://downloads.tuxfamily.org/godotengine
-WORKDIR /opt/godotengine
+ENV GODOT_DIR=/opt/godotengine
+WORKDIR $GODOT_DIR
 RUN for i in x11 linux_headless linux_server ; do wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION/Godot_v$GODOT_VERSION-stable_$i.64.zip ; done && for i in *.zip ; do unzip -q $i ; done && rm *.zip
 RUN for i in x11 linux_headless linux_server ; do wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION/mono/Godot_v$GODOT_VERSION-stable_mono_${i}_64.zip ; done && for i in *.zip ; do unzip -q $i ; done && rm *.zip
-RUN ln -s Godot_v$GODOT_VERSION-stable_x11.64 godot3
-RUN ln -s Godot_v$GODOT_VERSION-stable_x11.64 godot
-ENV PATH=$GODOT_DIR:$PATH
+RUN ln -s Godot_v$GODOT_VERSION-stable_x11.64 godot3 && \
+    ln -s Godot_v$GODOT_VERSION-stable_x11.64 godot && \
+    ln -s Godot_v$GODOT_VERSION-stable_linux_headless.64 godot3_headless && \
+    ln -s Godot_v$GODOT_VERSION-stable_linux_headless.64 godot_headless && \
+    ln -s Godot_v$GODOT_VERSION-stable_linux_server.64 godot3_server && \
+    ln -s Godot_v$GODOT_VERSION-stable_linux_server.64 godot_server && \
+    ln -s Godot_v$GODOT_VERSION-stable_mono_x11_64 godot3_mono && \
+    ln -s Godot_v$GODOT_VERSION-stable_mono_x11_64 godot_mono && \
+    ln -s Godot_v$GODOT_VERSION-stable_mono_linux_headless_64 godot3_mono_headless && \
+    ln -s Godot_v$GODOT_VERSION-stable_mono_linux_headless_64 godot_mono_headless && \
+    ln -s Godot_v$GODOT_VERSION-stable_mono_linux_server_64 godot3_mono_server && \
+    ln -s Godot_v$GODOT_VERSION-stable_mono_linux_server_64 godot_mono_server && \
+    ln -s Godot_v$GODOT_VERSION-stable_mono_x11.64 godot3_mono/godot3_mono && \
+    ln -s Godot_v$GODOT_VERSION-stable_mono_x11.64 godot_mono/godot_mono && \
+    ln -s Godot_v$GODOT_VERSION-stable_mono_linux_headless.64 godot3_mono_headless/godot3_mono_headless && \
+    ln -s Godot_v$GODOT_VERSION-stable_mono_linux_headless.64 godot_mono_headless/godot_mono_headless && \
+    ln -s Godot_v$GODOT_VERSION-stable_mono_linux_server.64 godot3_mono_server/godot3_mono_server && \
+    ln -s Godot_v$GODOT_VERSION-stable_mono_linux_server.64 godot_mono_server/godot_mono_server
+ENV PATH=$GODOT_DIR:$GODOT_DIR/godot3_mono:$GODOT_DIR/godot3_mono_headless:$GODOT_DIR/godot3_mono_server:$PATH
 
 # Work in /build
 # --------------
