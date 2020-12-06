@@ -38,7 +38,7 @@ grcc-all: grcc-native
 
 grcc-native: grcc-test grcc-debug grcc-release grcc-copy-local
 
-grcc-cross: grcc-target-all grcc-copy-all
+grcc-cross: grcc-test grcc-target-all grcc-copy-all
 
 grcc-target-all: grcc-target-windows grcc-target-android grcc-target-macosx grcc-target-linux
 
@@ -57,7 +57,7 @@ endif
 
 ifeq (,$(wildcard /opt/godot-rust-cross-compiler.txt))
 GRCC_USE_DOCKER=yes
-GRCC_INVOKE_DOCKER=install -d $(GRCC_CROSS_COMPILE_CACHE_DIR)/git && install -d $(GRCC_CROSS_COMPILE_CACHE_DIR)/registry && docker run -v $$(pwd):/build -v$$(realpath ../$(GRCC_CROSS_COMPILE_CACHE_DIR)/git):/root/.cargo/git -v$$(realpath ../$(GRCC_CROSS_COMPILE_CACHE_DIR)/registry):/root/.cargo/registry
+GRCC_INVOKE_DOCKER=install -d $(GRCC_CROSS_COMPILE_CACHE_DIR)/git && install -d $(GRCC_CROSS_COMPILE_CACHE_DIR)/registry && docker run -v $$(pwd):/build -v$$(realpath $(GRCC_CROSS_COMPILE_CACHE_DIR)/git):/root/.cargo/git -v$$(realpath $(GRCC_CROSS_COMPILE_CACHE_DIR)/registry):/root/.cargo/registry
 else
 GRCC_USE_DOCKER=no
 endif
@@ -83,7 +83,7 @@ GRCC_LINUX_I64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/linux/$(GRCC_LINUX_I64_TARGET)/
 GRCC_LINUX_I32_SRC=./rust/target/$(GRCC_LINUX_I32_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
 GRCC_LINUX_I32_DST=$(GRCC_GODOT_GDNATIVE_DIR)/linux/$(GRCC_LINUX_I32_TARGET)/
 
-GRCC_CROSS_COMPILE_CACHE_DIR=rust/cross-compile-cache
+GRCC_CROSS_COMPILE_CACHE_DIR=cross-compile-cache
 
 GRCC_WINDOWS_MINGW_HEADERS=/usr/x86_64-w64-mingw32/include
 GRCC_MACOSX_SDK_HEADERS=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX10.10.sdk/usr/include
