@@ -6,7 +6,8 @@
 FROM ubuntu:focal
 
 MAINTAINER Christian Mauduit "ufoot@ufoot.org"
-LABEL package="godot-rust-cross-compile" version="0.2.2" description="An image to cross-compile to Windows, Android, Mac OS X and Linux your godot-rust based libraries."
+ENV GRCC_VERSION=0.2.2
+LABEL package="godot-rust-cross-compile" version="$GRCC_VERSION" description="An image to cross-compile to Windows, Android, Mac OS X and Linux your godot-rust based libraries."
 
 # Prepare the system, install Debian packages
 # -------------------------------------------
@@ -26,7 +27,7 @@ RUN apt-get install -yq \
     ca-certificates default-jre-headless \
     godot3 mono-devel \
     libsaxon-java nunit xvfb \
-    vim emacs-nox \
+    vim \
     && apt-get clean
 
 ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64
@@ -39,20 +40,19 @@ WORKDIR $ANDROID_BUILD_TOOLS_PATH
 
 ARG ANDROID_BASE_URL=https://dl.google.com/android
 
-ARG ANDROID_SDK_RELEASE=android-sdk_r24.4.1
+ENV ANDROID_SDK_RELEASE=android-sdk_r24.4.1
 ARG ANDROID_SDK_DIR=android-sdk-linux
 ARG ANDROID_SDK_FILENAME=$ANDROID_SDK_RELEASE-linux.tgz
 ARG ANDROID_SDK_URL=$ANDROID_BASE_URL/$ANDROID_SDK_FILENAME
 ARG ANDROID_SDK_PATH=$ANDROID_BUILD_TOOLS_PATH/$ANDROID_SDK_DIR
 
-# https://dl.google.com/android/android-sdk_r24.4.1-linux.tgz
 RUN echo install $ANDROID_SDK_URL
 RUN wget -nc -nv $ANDROID_SDK_URL && tar -xzf $ANDROID_SDK_FILENAME && rm $ANDROID_SDK_FILENAME
 
 # Install android NDK
 # -------------------
 
-ARG ANDROID_NDK_RELEASE=android-ndk-r21d
+ENV ANDROID_NDK_RELEASE=android-ndk-r21d
 ARG ANDROID_NDK_DIR=$ANDROID_NDK_RELEASE
 ARG ANDROID_NDK_FILENAME=$ANDROID_NDK_RELEASE-linux-x86_64.zip
 ARG ANDROID_NDK_URL=$ANDROID_BASE_URL/repository/$ANDROID_NDK_FILENAME
@@ -120,7 +120,8 @@ ARG OSXCROSS_PATH=$MACOSX_BUILD_TOOLS_PATH/osxcross
 ARG OSXCROSS_COMMIT=7c090bd8cd4ad28cf332f1d02267630d8f333c19
 ARG MACOSX_CROSS_COMPILER_PATH=$MACOSX_BUILD_TOOLS_PATH/cross-compiler
 ARG MACOSX_SDK_BASE_URL=https://s3.dockerproject.org/darwin/v2
-ARG MACOSX_SDK_FILENAME=MacOSX10.10.sdk.tar.xz
+ENV MACOSX_SDK_VERSION=10.10
+ARG MACOSX_SDK_FILENAME=MacOSX$MACOSX_SDK_VERSION.sdk.tar.xz
 WORKDIR $MACOSX_BUILD_TOOLS_PATH
 RUN git clone https://github.com/tpoechtrager/osxcross
 WORKDIR $OSXCROSS_PATH
@@ -165,6 +166,12 @@ RUN ln -s Godot_v$GODOT_VERSION-stable_x11.64 godot3 && \
     ln -s Godot_v$GODOT_VERSION-stable_mono_linux_server.64 godot3_mono_server/godot3_mono_server && \
     ln -s Godot_v$GODOT_VERSION-stable_mono_linux_server.64 godot_mono_server/godot_mono_server
 ENV PATH=$GODOT_DIR:$GODOT_DIR/godot3_mono:$GODOT_DIR/godot3_mono_headless:$GODOT_DIR/godot3_mono_server:$PATH
+
+# Mark the sytem as being a godot-run-cross-compiler image
+# --------------------------------------------------------
+
+WORKDIR /opt
+RUN echo $GRCC_VERSION > godot-rust-cross-compiler.txt
 
 # Work in /build
 # --------------

@@ -269,6 +269,10 @@ GRCC_GODOT_RUST_LIB_NAME=cctoy
 include grcc.mk
 ```
 
+Another feature of this `Makefile`: it detects whether `/opt/godot-ruse-cross-compiler.txt` is present,
+and if it is there, it does not launch docker but builds natively. This way, a CI script can invoke
+the targets as you would locally, without "running docker within docker".
+
 Caching builds
 --------------
 
@@ -296,7 +300,6 @@ prove useful:
 * [Xvfb](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml): this is a virtual framebuffer X server, it can be used to actually launch a real Godot program on a CI server. Sometimes running headless is enough, but sometimes you want to test the real thing. Xvfb makes this possible.
 * [uber-apk-signer](https://github.com/patrickfav/uber-apk-signer): this tool helps signing Android APKs. While it is not strictly required to build and even sign a package, it is lightweight and really handy to have.
 * [vim](https://www.vim.org/): because being stuck in a container with no proper editor is no fun.
-* [GNU Emacs](https://www.gnu.org/software/emacs/): because I can't live without it.
 * [Godot](https://godotengine.org) in 6 flavors (with/without Mono support, and with default, headless and server variants), so that you can easily run tests, export builds, etc.
 
 Bugs and limitations
