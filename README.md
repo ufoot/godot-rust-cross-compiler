@@ -278,6 +278,12 @@ Another feature of this `Makefile`: it detects whether `/opt/godot-rust-cross-co
 and if it is there, it does not launch docker but builds natively. This way, a CI script can invoke
 the targets as you would locally, without "running docker within docker".
 
+It also has some basic packaging, making `.zip`, `.apk` or `.tar.gz` files
+which are hopefully "ready to distribute". A few caveats though:
+
+* projects are expected to embed the `.pck` within the executable (relevant for Windows and Linux).
+* android packages are not signed.
+
 Caching builds
 --------------
 
