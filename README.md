@@ -43,9 +43,9 @@ So this project exposes:
   * `x86_64-unknown-linux-gnu`: Linux, 64-bit Intel (standard Linux computers)
   * `i686-unknown-linux-gnu`: Linux, 32-bit Intel
 
-The toy app can serve as an example on how to build an app with Godot and Rust.
+The toy app can serve as an example on how to build an app with Godot and Rust. When you launch it it shoud say something about a `msg from Rust`.
 
-The [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compiler) can be used to build your own projects, without having to setup the whole toolchain. It is just there, ready to use.
+The [docker image](https://hub.docker.com/repository/docker/ufoot/godot-rust-cross-compiler) can be used to build your own projects, without having to setup the whole toolchain. It is huge, about 4Gb compressed, and 10Gb once installed. However, please consider that if you wanted to install an equivalent, complete local toolchain, it would very likely be as big.
 
 Cross Compiler Toy
 ------------------
