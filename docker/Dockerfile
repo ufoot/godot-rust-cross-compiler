@@ -17,7 +17,8 @@ RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata
 RUN apt-get install -yq \
     sudo curl wget git zip unzip \
     file g++ cmake pkg-config \
-    libasound2-dev bison flex ant openjdk-8-jdk \
+    libasound2-dev bison flex \
+    ant openjdk-8-jdk adb \
     lib32stdc++6 lib32z1 libssl-dev python \
     g++-multilib gcc-multilib libc6-dev-i386 \
     llvm-dev libclang-dev clang \
@@ -172,6 +173,24 @@ ARG GODOT_TEMPLATE_DIR=/root/.local/share/godot/templates
 WORKDIR $GODOT_TEMPLATE_DIR
 RUN wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION/Godot_v$GODOT_VERSION-stable_export_templates.tpz && unzip -q Godot_v$GODOT_VERSION-stable_export_templates.tpz && rm Godot_v$GODOT_VERSION-stable_export_templates.tpz && mv templates $GODOT_VERSION.stable
 RUN wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION/mono/Godot_v$GODOT_VERSION-stable_mono_export_templates.tpz && unzip -q Godot_v$GODOT_VERSION-stable_mono_export_templates.tpz && rm Godot_v$GODOT_VERSION-stable_mono_export_templates.tpz && mv templates $GODOT_VERSION.stable.mono
+
+# Setup editor defaults so that export works
+# ------------------------------------------
+
+ARG ANDROID_KEYSTORE_DIR=/root/.android
+WORKDIR $ANDROID_KEYSTORE_DIR
+RUN keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore debug.keystore -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
+ARG GODOT_EDITOR_CONFIG_DIR=/root/.config/godot
+ARG GODOT_EDITOR_CONFIG_FILENAME=editor_settings-3.tres
+WORKDIR $GODOT_EDITOR_CONFIG_DIR
+RUN echo '[gd_resource type="EditorSettings" format=2]' >> $GODOT_EDITOR_CONFIG_FILENAME
+RUN echo >> $GODOT_EDITOR_CONFIG_FILENAME
+RUN echo '[resource]' >> $GODOT_EDITOR_CONFIG_FILENAME
+RUN echo 'export/android/adb = "/usr/bin/adb"' >> $GODOT_EDITOR_CONFIG_FILENAME
+RUN echo 'export/android/jarsigner = "/usr/bin/jarsigner"' >> $GODOT_EDITOR_CONFIG_FILENAME
+RUN echo 'export/android/debug_keystore = "/root/.android/debug.keystore"' >> $GODOT_EDITOR_CONFIG_FILENAME
+RUN echo 'export/android/debug_keystore_user = "androiddebugkey"' >> $GODOT_EDITOR_CONFIG_FILENAME
+RUN echo 'export/android/debug_keystore_pass = "android"' >> $GODOT_EDITOR_CONFIG_FILENAME
 
 # Mark the sytem as being a godot-run-cross-compiler image
 # --------------------------------------------------------
