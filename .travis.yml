@@ -6,4 +6,5 @@ script: make grcc-export
 
 addons:
   artifacts:
-    working_dir: export
+    paths:
+    - export
