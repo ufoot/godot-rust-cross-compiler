@@ -1,0 +1,12 @@
+image: ufoot/godot-rust-cross-compiler:0.2.3
+
+native:
+  script:
+    - make grcc-native
+
+export:
+  script:
+    - make grcc-export
+  artifacts:
+    paths:
+      - export/*.*

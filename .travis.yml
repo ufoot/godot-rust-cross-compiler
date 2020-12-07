@@ -3,3 +3,7 @@ language: rust
 services: docker
 
 script: make grcc-export
+
+addons:
+  artifacts:
+    working_dir: export
