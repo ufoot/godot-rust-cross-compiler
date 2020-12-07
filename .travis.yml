@@ -2,4 +2,4 @@ language: rust
 
 services: docker
 
-script: make export
+script: make grcc-export

@@ -47,7 +47,7 @@ grcc-all: grcc-native
 
 grcc-native: grcc-test grcc-debug grcc-copy-local
 
-grcc-cross: grcc-test grcc-lib-all grcc-copy-all
+grcc-cross: grcc-test grcc-lib-all grcc-copy-if-exists
 
 grcc-export: grcc-test grcc-pkg-all
 
@@ -81,8 +81,9 @@ GRCC_USE_DOCKER=no
 GRCC_INVOKE_DOCKER_GODOT_EXPORT=
 endif
 
-GRCC_NATIVE_DEBUG_SRC=./rust/target/debug/lib$(GRCC_GODOT_RUST_LIB_NAME).so
-GRCC_NATIVE_RELEASE_SRC=./rust/target/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
+GRCC_NATIVE_DEBUG_WINDOWS_SRC=./rust/target/debug/$(GRCC_GODOT_RUST_LIB_NAME).dll
+GRCC_NATIVE_DEBUG_MACOSX_SRC=./rust/target/debug/lib$(GRCC_GODOT_RUST_LIB_NAME).dylib
+GRCC_NATIVE_DEBUG_LINUX_SRC=./rust/target/debug/lib$(GRCC_GODOT_RUST_LIB_NAME).so
 
 GRCC_GODOT_GDNATIVE_DIR=./godot/gdnative
 GRCC_WINDOWS_I64_SRC=./rust/target/$(GRCC_WINDOWS_I64_TARGET)/release/$(GRCC_GODOT_RUST_LIB_NAME).dll
@@ -196,8 +197,9 @@ else
 endif
 
 grcc-copy-local:
-	if (uname -a | grep -i darwin) && (uname -a | grep -i x86_64); then install -d $(GRCC_MACOSX_I64_DST) && cp $(GRCC_NATIVE_DEBUG_SRC) $(GRCC_MACOSX_I64_DST) ; fi
-	if (uname -a | grep -i linux) && (uname -a | grep -i x86_64); then install -d $(GRCC_LINUX_I64_DST) && cp $(GRCC_NATIVE_DEBUG_SRC) $(GRCC_LINUX_I64_DST) ; fi
+	if (uname -a | grep -i windows) ; then install -d $(GRCC_WINDOWS_I64_DST) && cp $(GRCC_NATIVE_DEBUG_WINDOWS_SRC) $(GRCC_WINDOWS_I64_DST) ; fi
+	if (uname -a | grep -i darwin) ; then install -d $(GRCC_MACOSX_I64_DST) && cp $(GRCC_NATIVE_DEBUG_MACOSX_SRC) $(GRCC_MACOSX_I64_DST) ; fi
+	if (uname -a | grep -i linux) ; then install -d $(GRCC_LINUX_I64_DST) && cp $(GRCC_NATIVE_DEBUG_LINUX_SRC) $(GRCC_LINUX_I64_DST) ; fi
 
 grcc-copy-if-exists:
 	if test -f $(GRCC_WINDOWS_I64_SRC) ; then install -d $(GRCC_WINDOWS_I64_DST) && cp $(GRCC_WINDOWS_I64_SRC) $(GRCC_WINDOWS_I64_DST) ; fi
@@ -214,18 +216,15 @@ grcc-copy-all: grcc-copy-windows grcc-copy-android grcc-copy-macosx grcc-copy-li
 grcc-copy-windows: grcc-lib-windows-i64
 	install -d $(GRCC_WINDOWS_I64_DST) && cp $(GRCC_WINDOWS_I64_SRC) $(GRCC_WINDOWS_I64_DST)
 
-grcc-copy-android: grcc-lib-android-arm64 grcc-lib-android-arm32 grcc-lib-android-i64 grcc-lib-android-i32
+grcc-copy-android: grcc-lib-android-arm64 grcc-lib-android-arm32
 	install -d $(GRCC_ANDROID_ARM64_DST) && cp $(GRCC_ANDROID_ARM64_SRC) $(GRCC_ANDROID_ARM64_DST)
 	install -d $(GRCC_ANDROID_ARM32_DST) && cp $(GRCC_ANDROID_ARM32_SRC) $(GRCC_ANDROID_ARM32_DST)
-	install -d $(GRCC_ANDROID_I64_DST) && cp $(GRCC_ANDROID_I64_SRC) $(GRCC_ANDROID_I64_DST)
-	install -d $(GRCC_ANDROID_I32_DST) && cp $(GRCC_ANDROID_I32_SRC) $(GRCC_ANDROID_I32_DST)
 
 grcc-copy-macosx: grcc-lib-macosx-i64
 	install -d $(GRCC_MACOSX_I64_DST) && cp $(GRCC_MACOSX_I64_SRC) $(GRCC_MACOSX_I64_DST)
 
-grcc-copy-linux: grcc-lib-linux-i64 grcc-lib-linux-i32
+grcc-copy-linux: grcc-lib-linux-i64
 	install -d $(GRCC_LINUX_I64_DST) && cp $(GRCC_LINUX_I64_SRC) $(GRCC_LINUX_I64_DST)
-	install -d $(GRCC_LINUX_I32_DST) && cp $(GRCC_LINUX_I32_SRC) $(GRCC_LINUX_I32_DST)
 
 grcc-pkg-all: grcc-pkg-windows grcc-pkg-android grcc-pkg-macosx grcc-pkg-linux
 
