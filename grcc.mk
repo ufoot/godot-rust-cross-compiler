@@ -42,6 +42,7 @@
 .PHONY: grcc-pkg-android
 .PHONY: grcc-pkg-macosx
 .PHONY: grcc-pkg-linux
+.PHONY: grcc-pkg-source
 
 grcc-all: grcc-native
 
@@ -62,14 +63,24 @@ GRCC_MACOSX_I64_TARGET=x86_64-apple-darwin
 GRCC_LINUX_I64_TARGET=x86_64-unknown-linux-gnu
 GRCC_LINUX_I32_TARGET=i686-unknown-linux-gnu
 
-ifeq (,$(GRCC_GODOT_RUST_LIB_NAME))
-GRCC_GODOT_RUST_LIB_NAME=please-define-GRCC_GODOT_RUST_LIB_NAME
-endif
+# This must be defined
 ifeq (,$(GRCC_GAME_PKG_NAME))
-GRCC_GAME_PKG_NAME=$(GRCC_GODOT_RUST_LIB_NAME)
+GRCC_GAME_PKG_NAME=please-define-GRCC_GAME_PKG_NAME
 endif
+# This should be defined, while not strictly mandatory, version matters.
 ifeq (,$(GRCC_GAME_PKG_VERSION))
 GRCC_GAME_PKG_VERSION=0.0.1
+endif
+
+# Default values provided for the following, based on package info.
+ifeq (,$(GRCC_GODOT_RUST_LIB_NAME))
+GRCC_GODOT_RUST_LIB_NAME=$(GRCC_GAME_PKG_NAME)
+endif
+ifeq (,$(GRCC_GAME_REPO_NAME))
+GRCC_GAME_REPO_NAME=$(GRCC_GAME_PKG_NAME)
+endif
+ifeq (,$(GRCC_GAME_REPO_VERSION))
+GRCC_GAME_REPO_VERSION=$(GRCC_GAME_PKG_VERSION)
 endif
 
 ifeq (,$(wildcard /opt/godot-rust-cross-compiler.txt))
@@ -226,7 +237,7 @@ grcc-copy-macosx: grcc-lib-macosx-i64
 grcc-copy-linux: grcc-lib-linux-i64
 	install -d $(GRCC_LINUX_I64_DST) && cp $(GRCC_LINUX_I64_SRC) $(GRCC_LINUX_I64_DST)
 
-grcc-pkg-all: grcc-pkg-windows grcc-pkg-android grcc-pkg-macosx grcc-pkg-linux
+grcc-pkg-all: grcc-pkg-windows grcc-pkg-android grcc-pkg-macosx grcc-pkg-linux grcc-pkg-source
 
 # [TODO] report this bug, need to launch the export twice for it to work, else complains about missing lib
 GRCC_PKG_BUILDX2=godot/buildx2.sh
@@ -254,3 +265,6 @@ grcc-pkg-linux: grcc-copy-linux
 	install -d $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_PKG)
 	mv godot/$(GRCC_GAME_PKG_NAME).bin godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_PKG)
 	cd $(GRCC_EXPORT_DIR) && tar czf $(GRCC_EXPORT_LINUX_PKG).tar.gz $(GRCC_EXPORT_LINUX_PKG) && rm -rf $(GRCC_EXPORT_LINUX_PKG)
+
+grcc-pkg-source: .git/config
+	export REPO=$$(grep url .git/config | cut -d "=" -f 2) && install -d $(GRCC_EXPORT_DIR) && cd $(GRCC_EXPORT_DIR) && rm -rf $(GRCC_GAME_REPO_NAME) $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && git clone $$REPO && rm -rf $(GRCC_GAME_REPO_NAME)/.git && mv $(GRCC_GAME_REPO_NAME) $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && tar czf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && zip -r $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION)

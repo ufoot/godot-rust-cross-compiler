@@ -269,8 +269,8 @@ other tools such as [SCons](https://www.scons.org/), [Ninja](https://ninja-build
 Think of this as [an example](https://github.com/ufoot/godot-rust-cross-compiler/blob/master/grcc.mk) of how to use the docker image. A typical usage would beto put in your main `Makefile`:
 
 ```mk
-# replace cctoy with the name of your library
-GRCC_GODOT_RUST_LIB_NAME=cctoy
+# replace cctoy with the name of your package
+GRCC_GAME_PKG_NAME=cctoy
 include grcc.mk
 ```
 
