@@ -1,6 +1,6 @@
 [package]
 name = "withgdnative"
-version = "0.1.0"
+version = "0.2.4"
 authors = ["Christian Mauduit (ufoot) <ufoot@ufoot.org>"]
 edition = "2018"
 

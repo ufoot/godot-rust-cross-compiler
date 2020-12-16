@@ -52,7 +52,7 @@ checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
 name = "cctoy"
-version = "0.1.0"
+version = "0.2.4"
 dependencies = [
  "gdnative",
  "withgdnative",
@@ -407,7 +407,7 @@ dependencies = [
 
 [[package]]
 name = "purelib"
-version = "0.1.0"
+version = "0.2.4"
 
 [[package]]
 name = "quote"
@@ -546,7 +546,7 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "withgdnative"
-version = "0.1.0"
+version = "0.2.4"
 dependencies = [
  "gdnative",
  "purelib",
