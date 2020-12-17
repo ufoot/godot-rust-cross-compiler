@@ -15,6 +15,8 @@
 .PHONY: grcc-test
 .PHONY: grcc-debug
 .PHONY: grcc-release
+.PHONY: grcc-clean
+.PHONY: grcc-doc
 .PHONY: grcc-lib-all
 .PHONY: grcc-lib-windows
 .PHONY: grcc-lib-windows-i64
@@ -140,6 +142,9 @@ grcc-clean:
 	rm -rf export
 	cd rust && (cargo clean || rm -rf ./target)
 	rm -rf $(GRCC_CROSS_COMPILER_CACHE_DIR)
+
+grcc-doc:
+	cd rust && cargo doc --workspace --offline
 
 grcc-lib-all: grcc-lib-windows grcc-lib-android grcc-lib-macosx grcc-lib-linux
 
