@@ -2,7 +2,7 @@
 # Example:
 #
 # ---8<----------------------
-# GRCC_GODOT_RUST_LIB_NAME=cctoy
+# GRCC_GAME_PKG_NAME=cctoy
 # include grcc.mk
 # ---8<----------------------
 #
@@ -116,7 +116,7 @@ GRCC_LINUX_I64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/linux/$(GRCC_LINUX_I64_TARGET)/
 GRCC_LINUX_I32_SRC=./rust/target/$(GRCC_LINUX_I32_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
 GRCC_LINUX_I32_DST=$(GRCC_GODOT_GDNATIVE_DIR)/linux/$(GRCC_LINUX_I32_TARGET)/
 
-GRCC_CROSS_COMPILER_CACHE_DIR=cross-compile-cache
+GRCC_CROSS_COMPILER_CACHE_DIR=target/cross-compiler-cache
 
 GRCC_WINDOWS_MINGW_HEADERS=/usr/x86_64-w64-mingw32/include
 GRCC_MACOSX_SDK_HEADERS=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX10.10.sdk/usr/include
@@ -141,7 +141,6 @@ grcc-clean:
 	rm -rf $(GRCC_GODOT_GDNATIVE_DIR)
 	rm -rf export
 	cd rust && (cargo clean || rm -rf ./target)
-	rm -rf $(GRCC_CROSS_COMPILER_CACHE_DIR)
 
 grcc-doc:
 	cd rust && cargo doc --workspace --offline
@@ -272,4 +271,4 @@ grcc-pkg-linux: grcc-copy-linux
 	cd $(GRCC_EXPORT_DIR) && tar czf $(GRCC_EXPORT_LINUX_PKG).tar.gz $(GRCC_EXPORT_LINUX_PKG) && rm -rf $(GRCC_EXPORT_LINUX_PKG)
 
 grcc-pkg-source: .git/config
-	export REPO="$$(grep url .git/config | cut -d = -f 2)" && install -d $(GRCC_EXPORT_DIR) && cd $(GRCC_EXPORT_DIR) && rm -rf $(GRCC_GAME_REPO_NAME) $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -f $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip && git clone $$REPO && rm -rf $(GRCC_GAME_REPO_NAME)/.git && mv $(GRCC_GAME_REPO_NAME) $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && tar czf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && zip -r $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION)
+	export REPO="$$(grep url .git/config | head -n 1 | cut -d = -f 2)" && install -d $(GRCC_EXPORT_DIR) && cd $(GRCC_EXPORT_DIR) && rm -rf $(GRCC_GAME_REPO_NAME) $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -f $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip && git clone $$REPO && rm -rf $(GRCC_GAME_REPO_NAME)/.git && mv $(GRCC_GAME_REPO_NAME) $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && tar czf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && zip -r $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION)
