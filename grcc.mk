@@ -17,6 +17,7 @@
 .PHONY: grcc-release
 .PHONY: grcc-clean
 .PHONY: grcc-doc
+.PHONY: grcc-clean-prepare
 .PHONY: grcc-lib-all
 .PHONY: grcc-lib-windows
 .PHONY: grcc-lib-windows-i64
@@ -137,13 +138,15 @@ grcc-debug:
 grcc-release:
 	cd rust && cargo build --release
 
-grcc-clean:
-	rm -rf $(GRCC_GODOT_GDNATIVE_DIR)
+grcc-clean: grcc-clean-prepare
 	rm -rf export
-	cd rust && (cargo clean || rm -rf ./target)
 
 grcc-doc:
 	cd rust && cargo doc --workspace --offline
+
+grcc-clean-prepare:
+	rm -rf $(GRCC_GODOT_GDNATIVE_DIR)
+	cd rust && (cargo clean || rm -rf ./target)
 
 grcc-lib-all: grcc-lib-windows grcc-lib-android grcc-lib-macosx grcc-lib-linux
 
@@ -270,5 +273,5 @@ grcc-pkg-linux: grcc-copy-linux
 	mv godot/$(GRCC_GAME_PKG_NAME).bin godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_PKG)
 	cd $(GRCC_EXPORT_DIR) && tar czf $(GRCC_EXPORT_LINUX_PKG).tar.gz $(GRCC_EXPORT_LINUX_PKG) && rm -rf $(GRCC_EXPORT_LINUX_PKG)
 
-grcc-pkg-source: .git/config
-	export REPO="$$(grep url .git/config | head -n 1 | cut -d = -f 2)" && install -d $(GRCC_EXPORT_DIR) && cd $(GRCC_EXPORT_DIR) && rm -rf $(GRCC_GAME_REPO_NAME) $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -f $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip && git clone $$REPO && rm -rf $(GRCC_GAME_REPO_NAME)/.git && mv $(GRCC_GAME_REPO_NAME) $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && tar czf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && zip -r $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION)
+grcc-pkg-source: .git/config grcc-clean-prepare
+	export REPO="$$(grep url .git/config | head -n 1 | cut -d = -f 2)" && install -d $(GRCC_EXPORT_DIR) && rm -f $(GRCC_EXPORT_DIR)/$(GRCC_GAME_REPO_NAME).tar && tar cf $(GRCC_EXPORT_DIR)/$(GRCC_GAME_REPO_NAME).tar --exclude=.git --exclude=export --exclude=rust/target . && cd $(GRCC_EXPORT_DIR) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -f $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip && mkdir $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && cd $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && tar xf ../$(GRCC_GAME_REPO_NAME).tar && cd .. && rm $(GRCC_GAME_REPO_NAME).tar && tar czf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && zip -r $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION)
