@@ -23,6 +23,7 @@ how to do this yourself, included, but not limited to:
 - https://doc.rust-lang.org/cargo/reference/config.html
 - https://gist.github.com/extrawurst/ae3fd3ef152a878acfdc860db025e886
 - https://github.com/godotengine/godot/blob/3.2/misc/dist/docker/scripts/install-android-tools
+- https://wapl.es/rust/2019/02/17/rust-cross-compile-linux-to-macos.html
 - ...
 
 However, cross-compiling is hard, a lot of things can go wrong, it

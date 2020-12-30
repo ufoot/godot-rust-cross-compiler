@@ -15,7 +15,7 @@ _global_script_class_icons={
 
 [application]
 
-config/name="Cross Compiler Toy"
+config/name="Godot Rust Cross Compiler Toy"
 run/main_scene="res://scenes/main_scene.tscn"
 config/icon="res://icon.png"
 
