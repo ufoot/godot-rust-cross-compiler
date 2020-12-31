@@ -146,7 +146,7 @@ grcc-doc:
 
 grcc-clean-prepare:
 	rm -rf $(GRCC_GODOT_GDNATIVE_DIR)
-	cd rust && (cargo clean || rm -rf ./target)
+	cd rust && (cargo clean || rm -rf ./target || sudo rm -rf ./target)
 
 grcc-lib-all: grcc-lib-windows grcc-lib-android grcc-lib-macosx grcc-lib-linux
 
