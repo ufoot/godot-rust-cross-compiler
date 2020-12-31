@@ -38,8 +38,11 @@ So this project exposes:
   * `x86_64-pc-windows-gnu`: MS-Windows, 64-bit Intel (standard Windows computers)
   * `aarch64-linux-android`: Android, 64-bit ARM (standard Android phones)
   * `armv7-linux-androideabi`: Android, 32-bit ARM (older Android phones)
+  * `x86_64-linux-android`: Android, 64-bit Intel
+  * `i686-linux-android`: Android, 32-bit Intel
   * `x86_64-apple-darwin`: Mac OS X, 64-bit Intel (standard Mac computers)
   * `x86_64-unknown-linux-gnu`: Linux, 64-bit Intel (standard Linux computers)
+  * `i686-unknown-linux-gnu`: Linux, 32-bit Intel
 
 The toy app can serve as an example on how to build an app with Godot and Rust. When you launch it it shoud say something about a `msg from Rust`.
 
