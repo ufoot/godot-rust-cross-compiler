@@ -268,9 +268,9 @@ grcc-pkg-macosx: grcc-copy-macosx
 
 grcc-pkg-linux: grcc-copy-linux
 	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_PKG).zip godot/lib
-	echo 'for i in warmup real ; do godot_headless --path godot --export "Linux/X11" $(GRCC_GAME_PKG_NAME).bin ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
+	echo 'for i in warmup real ; do godot_headless --path godot --export "Linux/X11" $(GRCC_GAME_PKG_NAME) ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
 	install -d $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_PKG)
-	mv godot/$(GRCC_GAME_PKG_NAME).bin godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_PKG)
+	mv godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_PKG)
 	cd $(GRCC_EXPORT_DIR) && tar czf $(GRCC_EXPORT_LINUX_PKG).tar.gz $(GRCC_EXPORT_LINUX_PKG) && rm -rf $(GRCC_EXPORT_LINUX_PKG)
 
 grcc-pkg-source: .git/config grcc-clean-prepare
