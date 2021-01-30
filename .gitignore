@@ -51,6 +51,7 @@ _testmain.go
 # Godot
 .mono
 .vscode
+.import
 *.dll
 TestResult.xml
 junit-results.xml
