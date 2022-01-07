@@ -7,7 +7,7 @@ FROM ubuntu:focal
 
 MAINTAINER Christian Mauduit "ufoot@ufoot.org"
 ENV GRCC_VERSION=0.2.3
-LABEL package="godot-rust-cross-compiler" version="$GRCC_VERSION" description="An image to cross-compile to Windows, Android, Mac OS X and Linux your godot-rust based libraries."
+LABEL package="godot-rust-cross-compiler" version="$GRCC_VERSION" description="An image to cross-compile to Windows, Android, Mac OS X, iOS and Linux your godot-rust based libraries."
 
 # Prepare the system, install Debian packages
 # -------------------------------------------
@@ -85,7 +85,8 @@ RUN rustup target add \
     i686-linux-android \
     x86_64-apple-darwin \
     x86_64-unknown-linux-gnu \
-    i686-unknown-linux-gnu
+    i686-unknown-linux-gnu \
+    aarch64-apple-ios
 
 RUN mkdir /root/.cargo/git
 RUN mkdir /root/.cargo/registry
@@ -136,6 +137,32 @@ RUN UNATTENDED=yes OSX_VERSION_MIN=10.7 TARGET_DIR=$MACOSX_CROSS_COMPILER_PATH .
 RUN echo "[target.x86_64-apple-darwin]" >> /root/.cargo/config
 RUN find $MACOSX_CROSS_COMPILER_PATH -name x86_64-apple-darwin14-cc -printf 'linker = "%p"\n' >> /root/.cargo/config
 RUN echo >> /root/.cargo/config
+
+# Install iPhoneOS SDK and iOS toolchain
+# --------------------------------------
+
+ARG IOS_BUILD_TOOLS_PATH=/opt/ios-build-tools
+ARG IOS_CROSS_COMPILER_PATH=$IOS_BUILD_TOOLS_PATH/linux
+WORKDIR $IOS_BUILD_TOOLS_PATH
+RUN git clone https://github.com/theos/sdks.git
+RUN wget -nc -nv -O linux-cctools.tar.gz https://kabiroberai.com/toolchain/download.php?toolchain=ios-linux && tar -xzf linux-cctools.tar.gz
+
+# Configure Rust for iOS cross-compiling
+# -------------------------------------------
+
+RUN echo "[target.aarch64-apple-ios]" >> /root/.cargo/config
+RUN find $IOS_CROSS_COMPILER_PATH -name arm64-apple-darwin14-ar -printf 'ar = "%p"\n' >> /root/.cargo/config
+RUN find $IOS_CROSS_COMPILER_PATH -name arm64-apple-darwin14-clang -printf 'linker = "%p"\n' >> /root/.cargo/config
+RUN echo >> /root/.cargo/config
+
+# Create xcrun script
+# -------------------
+
+RUN mkdir -p /opt/ios-build-tools/bin
+RUN echo "#!/bin/bash" >> /opt/ios-build-tools/bin/xcrun
+RUN echo "echo \"/opt/ios-build-tools/sdks/iPhoneOS14.4.sdk\"" >> /opt/ios-build-tools/bin/xcrun
+RUN chmod +x /opt/ios-build-tools/bin/xcrun
+ENV PATH=/opt/ios-build-tools/bin:$PATH
 
 # Install all flavors of Godot
 # ----------------------------

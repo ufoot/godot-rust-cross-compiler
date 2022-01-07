@@ -11,4 +11,4 @@ gdnative = "0.9.1"
 withgdnative = { path = "../withgdnative" }
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "staticlib"]
