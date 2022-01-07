@@ -24,6 +24,7 @@ how to do this yourself, included, but not limited to:
 - https://gist.github.com/extrawurst/ae3fd3ef152a878acfdc860db025e886
 - https://github.com/godotengine/godot/blob/3.2/misc/dist/docker/scripts/install-android-tools
 - https://wapl.es/rust/2019/02/17/rust-cross-compile-linux-to-macos.html
+- https://www.reddit.com/r/jailbreakdevelopers/comments/lhhtdj/tutorial_how_to_cross_compile_for_ios_from_linux
 - ...
 
 However, cross-compiling is hard, a lot of things can go wrong, it
@@ -43,6 +44,7 @@ So this project exposes:
   * `x86_64-apple-darwin`: Mac OS X, 64-bit Intel (standard Mac computers)
   * `x86_64-unknown-linux-gnu`: Linux, 64-bit Intel (standard Linux computers)
   * `i686-unknown-linux-gnu`: Linux, 32-bit Intel
+  * `aarch64-apple-ios`: iOS, 64-bit ARM
 
 The toy app can serve as an example on how to build an app with Godot and Rust. When you launch it it shoud say something about a `msg from Rust`.
 
@@ -58,7 +60,7 @@ The Godot project is in [./godot/](https://github.com/ufoot/godot-rust-cross-com
 
 Also, the library itself it separated into 3 sub libraries:
 
-* [cctoy](https://github.com/ufoot/godot-rust-cross-compiler/tree/master/rust/cctoy): this is the main library, the one which should be imported in the final Godot project. It is named `cctoy.dll`, `libcctoy.dylib` or `libcctoy.so` depending on the platform.
+* [cctoy](https://github.com/ufoot/godot-rust-cross-compiler/tree/master/rust/cctoy): this is the main library, the one which should be imported in the final Godot project. It is named `cctoy.dll`, `libcctoy.dylib`, `libcctoy.a` or `libcctoy.so` depending on the platform.
 * [withgdnative](https://github.com/ufoot/godot-rust-cross-compiler/tree/master/rust/withgdnative): this library links on [gdnative](https://docs.rs/gdnative) but it is still a standard rust library. More precisely it does not have the `crate-type = ["cdylib"]` attribute in its `Cargo.toml` file. So it can happen that this builds but `cctoy` does not build. Problems typically happen at link time. As this one, contrary to `cctoy`, does not actually link with Godot code, it is easier to build. Very likely, in this code, you can use objects sur as Godot Nodes, but you can not instanciate and test them for real, as they might need some runtime context, which is only available withing Godot itself.
 * [purelib](https://github.com/ufoot/godot-rust-cross-compiler/tree/master/rust/purelib): this library does not link on anything Godot specific, either native or not. This way it is easier to test if your Rust cross-compiler is working. It might happen that this builds, but `withgdnative` fails, typically because of a native compiler issue.
 
@@ -125,7 +127,7 @@ typically [GCC](https://gcc.gnu.org/) or [Clang](https://clang.llvm.org/).
 And *THIS* is where things get complex. Because there is no such thing
 as a universal, easy-to-install, cross-platform compiler, with working
 headers and libraries, which compiles
-from Linux to Windows, Android, and Mac OS X.
+from Linux to Windows, Android, iOS, and Mac OS X.
 
 As a side note, it is exactly because this is so hard that languages such
 as [Rust](https://www.rust-lang.org) or [Go](https://golang.org/)
@@ -202,6 +204,28 @@ linker = "/opt/android-build-tools/android-ndk-r21d/toolchains/llvm/prebuilt/lin
 Note that depending on the versions, the NDK are organized in radically
 different ways, so any change in the NDK version might require some
 heavylifting change in all those scripts.
+
+Building for iOS
+--------------------
+
+To build the library for iOS:
+
+```sh
+docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler cargo build --release --target aarch64-apple-ios
+```
+
+Underneath it does a few things for you:
+
+* git clone the [iPhoneOS SDK](https://github.com/theos/sdks) repository.
+* download and install the [iOS toolchain](https://kabiroberai.com/toolchain/download.php?toolchain=ios-linux).
+* create an `xcrun` script which just echoes the path to the iPhoneOS 14.4 SDK.
+* it also overrides the ar and linker with the ones found on iOS toolchain directory in your `$HOME/.cargo/config` file:
+
+```toml
+[target.aarch64-apple-ios]
+ar = "/opt/ios-build-tools/linux/iphone/bin/arm64-apple-darwin14-ar"
+linker = "/opt/ios-build-tools/linux/iphone/bin/arm64-apple-darwin14-clang"
+```
 
 Building for Mac OS X
 ---------------------
@@ -319,7 +343,6 @@ Bugs and limitations
 --------------------
 
 * only a few archs supported, more specifically:
-  * no iOS support
   * 32-bit support not working on Windows
 * everything runs as `root` in the container, consequently some files might be generated as `user:root` on your system, cleaning them requires `sudo` or other inconvenient hacks
 * `[YOUR BUG HERE]`
