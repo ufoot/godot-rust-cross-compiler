@@ -29,6 +29,8 @@ RUN apt-get install -yq \
     godot3 mono-devel \
     libsaxon-java nunit xvfb \
     vim \
+#    binutils build-essential \
+#    python3 python3-pip \
     && apt-get clean
 
 ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64
@@ -85,7 +87,8 @@ RUN rustup target add \
     i686-linux-android \
     x86_64-apple-darwin \
     x86_64-unknown-linux-gnu \
-    i686-unknown-linux-gnu
+    i686-unknown-linux-gnu \
+    wasm32-unknown-emscripten
 
 RUN mkdir /root/.cargo/git
 RUN mkdir /root/.cargo/registry
@@ -136,6 +139,56 @@ RUN UNATTENDED=yes OSX_VERSION_MIN=10.7 TARGET_DIR=$MACOSX_CROSS_COMPILER_PATH .
 RUN echo "[target.x86_64-apple-darwin]" >> /root/.cargo/config
 RUN find $MACOSX_CROSS_COMPILER_PATH -name x86_64-apple-darwin14-cc -printf 'linker = "%p"\n' >> /root/.cargo/config
 RUN echo >> /root/.cargo/config
+
+# Install Emscripten SDK
+# ----------------------
+
+ARG EMSCRIPTEN_VERSION=2.0.17
+ARG EMSCRIPTEN_BUILD_TOOLS_PATH=/opt/emscripten-build-tools
+ARG EMSCRIPTEN_SDK_PATH=${EMSCRIPTEN_BUILD_TOOLS_PATH}/emsdk
+WORKDIR $EMSCRIPTEN_BUILD_TOOLS_PATH
+RUN git clone https://github.com/emscripten-core/emsdk.git
+WORKDIR $EMSCRIPTEN_SDK_PATH
+RUN ./emsdk install ${EMSCRIPTEN_VERSION}
+RUN ./emsdk activate ${EMSCRIPTEN_VERSION}
+RUN chmod 777 ${EMSCRIPTEN_SDK_PATH}/upstream/emscripten
+RUN chmod -R 777 ${EMSCRIPTEN_SDK_PATH}/upstream/emscripten/cache
+ENV PATH="${EMSCRIPTEN_SDK_PATH}:${EMSCRIPTEN_SDK_PATH}/upstream/emscripten:${EMSCRIPTEN_SDK_PATH}/upstream/bin:${EMSCRIPTEN_SDK_PATH}/node/14.18.2_64bit/bin:${PATH}"
+ENV EMSDK=${EMSCRIPTEN_SDK_PATH}
+ENV EM_CONFIG=${EMSCRIPTEN_SDK_PATH}/.emscripten
+ENV EMSDK_NODE=${EMSCRIPTEN_SDK_PATH}/node/14.18.2_64bit/bin/node
+
+# Cleanup Emscripten installation by removing debugging symbols
+# -------------------------------------------------------------
+
+RUN echo "## Aggressive optimization: Remove debug symbols" \
+    && cd ${EMSCRIPTEN_SDK_PATH} && . ./emsdk_env.sh \
+    # Remove debugging symbols from embedded node (extra 7MB)
+    && strip -s `which node` \
+    # Tests consume ~80MB disc space
+    && rm -fr ${EMSCRIPTEN_SDK_PATH}/upstream/emscripten/tests \
+    # Fastcomp is not supported
+    && rm -fr ${EMSCRIPTEN_SDK_PATH}/upstream/fastcomp \
+    # strip out symbols from clang (~extra 50MB disc space)
+    && find ${EMSCRIPTEN_SDK_PATH}/upstream/bin -type f -exec strip -s {} + || true \
+    && echo "## Done"
+
+# Copy emcc-mod script
+# --------------------
+
+RUN mkdir -p /opt/emscripten-build-tools/bin
+COPY ./emcc-mod /opt/emscripten-build-tools/bin
+RUN chmod +x /opt/emscripten-build-tools/bin/emcc-mod
+ENV PATH=/opt/emscripten-build-tools/bin:$PATH
+
+# Configure Rust for Emscripten cross-compiling
+# ---------------------------------------------
+
+RUN echo "[target.wasm32-unknown-emscripten]" >> /root/.cargo/config
+RUN find /opt/emscripten-build-tools/bin -name emcc-mod -printf 'linker = "%p"\n' >> /root/.cargo/config
+RUN echo >> /root/.cargo/config
+
+RUN cat /root/.cargo/config
 
 # Install all flavors of Godot
 # ----------------------------
