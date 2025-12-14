@@ -2,10 +2,10 @@
 name = "withgodot"
 version = "0.3.0"
 authors = ["Christian Mauduit (ufoot) <ufoot@ufoot.org>"]
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-godot = "0.2"
+godot = "0.4.3"
 purelib = { path = "../purelib" }

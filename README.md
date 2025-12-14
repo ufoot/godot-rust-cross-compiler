@@ -364,7 +364,7 @@ License
 [MIT](https://github.com/ufoot/godot-rust-cross-compiler/blob/master/LICENSE.txt)
 
 ```
-Copyright (c) 2020-2024 Christian Mauduit <ufoot@ufoot.org>
+Copyright (c) 2020-2025 Christian Mauduit <ufoot@ufoot.org>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
