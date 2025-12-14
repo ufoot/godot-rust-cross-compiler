@@ -72,11 +72,11 @@ grcc-native: grcc-test grcc-debug grcc-copy-local
 
 grcc-cross: grcc-test grcc-lib-all grcc-copy-if-exists
 
-grcc-export: grcc-test grcc-pkg-all
+grcc-export: grcc-test grcc-pkg-all grcc-installer-windows grcc-dmg-macosx
 
 grcc-lib-all: grcc-lib-windows grcc-lib-android grcc-lib-macosx grcc-lib-linux
 
-GRCC_WINDOWS_X64_TARGET=x86_64-pc-windows-gnu
+GRCC_WINDOWS_X64_TARGET=x86_64-pc-windows-gnullvm
 GRCC_WINDOWS_ARM64_TARGET=aarch64-pc-windows-gnullvm
 GRCC_ANDROID_ARM64_TARGET=aarch64-linux-android
 GRCC_ANDROID_ARM32_TARGET=armv7-linux-androideabi
@@ -147,7 +147,7 @@ GRCC_LINUX_ARM64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/linux/$(GRCC_LINUX_ARM64_TARGET)
 
 GRCC_CROSS_COMPILER_CACHE_DIR=target/cross-compiler-cache
 
-GRCC_WINDOWS_MINGW_HEADERS=/usr/x86_64-w64-mingw32/include
+GRCC_WINDOWS_MINGW_HEADERS=/opt/llvm-mingw/x86_64-w64-mingw32/include
 GRCC_MACOSX_SDK_HEADERS=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include
 GRCC_MACOSX_SDK_CC_X64=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin23-clang
 GRCC_MACOSX_SDK_CC_ARM64=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23-clang

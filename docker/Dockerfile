@@ -22,7 +22,6 @@ RUN apt-get install -yq \
     libssl-dev python3 python-is-python3 \
     llvm-dev libclang-dev clang \
     libncurses-dev \
-    binutils-mingw-w64 gcc-mingw-w64 g++-mingw-w64 \
     libxml2-dev zlib1g-dev \
     ca-certificates default-jre-headless \
     xvfb \
@@ -42,11 +41,15 @@ ARG ANDROID_CMDLINE_TOOLS_URL=$ANDROID_BASE_URL/$ANDROID_CMDLINE_TOOLS_FILENAME
 
 ENV ANDROID_HOME=$ANDROID_BUILD_TOOLS_PATH/android-sdk
 ENV ANDROID_SDK_ROOT=$ANDROID_HOME
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+# JAVA_HOME is set dynamically based on architecture during build
 
 WORKDIR $ANDROID_BUILD_TOOLS_PATH
 
-# Install SDK, NDK, then clean up unused NDK components to save ~1GB
+# Detect architecture for NDK toolchain path
+ARG TARGETARCH
+ARG NDK_VERSION=23.2.8568313
+
+# Install SDK, NDK, then clean up unused NDK components
 RUN wget -nc -nv $ANDROID_CMDLINE_TOOLS_URL && \
     unzip -q $ANDROID_CMDLINE_TOOLS_FILENAME && \
     rm $ANDROID_CMDLINE_TOOLS_FILENAME && \
@@ -54,16 +57,16 @@ RUN wget -nc -nv $ANDROID_CMDLINE_TOOLS_URL && \
     mv cmdline-tools android-sdk/cmdline-tools/latest && \
     export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java)))) && \
     yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses && \
-    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;23.2.8568313" "cmdline-tools;latest" && \
-    # Remove unused NDK toolchains (keep only linux-x86_64 host) \
-    rm -rf $ANDROID_HOME/ndk/23.2.8568313/toolchains/llvm/prebuilt/darwin-x86_64 2>/dev/null || true && \
-    rm -rf $ANDROID_HOME/ndk/23.2.8568313/toolchains/llvm/prebuilt/windows-x86_64 2>/dev/null || true && \
-    rm -rf $ANDROID_HOME/ndk/23.2.8568313/toolchains/llvm/prebuilt/windows 2>/dev/null || true && \
+    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;$NDK_VERSION" "cmdline-tools;latest" && \
+    # Remove unused NDK toolchains (keep only current host architecture) \
+    rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/darwin-x86_64 2>/dev/null || true && \
+    rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/windows-x86_64 2>/dev/null || true && \
+    rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/windows 2>/dev/null || true && \
     # Remove NDK simpleperf, shader-tools, renderscript (not needed for Rust) \
-    rm -rf $ANDROID_HOME/ndk/23.2.8568313/simpleperf 2>/dev/null || true && \
-    rm -rf $ANDROID_HOME/ndk/23.2.8568313/shader-tools 2>/dev/null || true && \
-    rm -rf $ANDROID_HOME/ndk/23.2.8568313/sources/third_party/shaderc 2>/dev/null || true && \
-    rm -rf $ANDROID_HOME/ndk/23.2.8568313/sources/cxx-stl/llvm-libc++/test 2>/dev/null || true && \
+    rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/simpleperf 2>/dev/null || true && \
+    rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/shader-tools 2>/dev/null || true && \
+    rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/sources/third_party/shaderc 2>/dev/null || true && \
+    rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/sources/cxx-stl/llvm-libc++/test 2>/dev/null || true && \
     # Clean up zip cache \
     rm -rf /root/.android/cache/*
 
@@ -82,7 +85,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y --pr
 ENV PATH=/root/.cargo/bin:$PATH
 
 RUN rustup target add \
-    x86_64-pc-windows-gnu \
+    x86_64-pc-windows-gnullvm \
     aarch64-pc-windows-gnullvm \
     aarch64-linux-android \
     armv7-linux-androideabi \
@@ -98,11 +101,13 @@ RUN mkdir -p /root/.cargo/git /root/.cargo/registry
 
 # Configure Rust for Android cross-compiling
 # ------------------------------------------
+# NDK toolchain path depends on host architecture (linux-x86_64 or linux-aarch64)
 
 ARG ANDROID_API_LEVEL=21
-ARG NDK_TOOLCHAIN=$ANDROID_HOME/ndk/23.2.8568313/toolchains/llvm/prebuilt/linux-x86_64/bin
 
-RUN echo "[target.aarch64-linux-android]" >> /root/.cargo/config.toml && \
+RUN NDK_HOST=$(if [ "$TARGETARCH" = "arm64" ]; then echo "linux-aarch64"; else echo "linux-x86_64"; fi) && \
+    NDK_TOOLCHAIN="$ANDROID_HOME/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/$NDK_HOST/bin" && \
+    echo "[target.aarch64-linux-android]" >> /root/.cargo/config.toml && \
     echo "linker = \"$NDK_TOOLCHAIN/aarch64-linux-android${ANDROID_API_LEVEL}-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml && \
     echo "[target.armv7-linux-androideabi]" >> /root/.cargo/config.toml && \
@@ -118,26 +123,29 @@ RUN echo "[target.aarch64-linux-android]" >> /root/.cargo/config.toml && \
     echo "linker = \"aarch64-linux-gnu-gcc\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml
 
-# Install llvm-mingw for Windows ARM64 cross-compiling
-# Only keep aarch64 toolchain, remove others to save ~800MB
+# Install llvm-mingw for Windows cross-compiling (x64 and ARM64)
+# URL depends on host architecture (x86_64 or aarch64)
 ARG LLVM_MINGW_VERSION=20241119
-ARG LLVM_MINGW_URL=https://github.com/mstorsjo/llvm-mingw/releases/download/$LLVM_MINGW_VERSION/llvm-mingw-$LLVM_MINGW_VERSION-ucrt-ubuntu-20.04-x86_64.tar.xz
-RUN wget -nc -nv $LLVM_MINGW_URL -O /tmp/llvm-mingw.tar.xz && \
+RUN LLVM_HOST_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "aarch64"; else echo "x86_64"; fi) && \
+    LLVM_MINGW_URL="https://github.com/mstorsjo/llvm-mingw/releases/download/$LLVM_MINGW_VERSION/llvm-mingw-$LLVM_MINGW_VERSION-ucrt-ubuntu-20.04-$LLVM_HOST_ARCH.tar.xz" && \
+    wget -nc -nv $LLVM_MINGW_URL -O /tmp/llvm-mingw.tar.xz && \
     tar -xf /tmp/llvm-mingw.tar.xz -C /opt && \
     rm /tmp/llvm-mingw.tar.xz && \
-    mv /opt/llvm-mingw-$LLVM_MINGW_VERSION-ucrt-ubuntu-20.04-x86_64 /opt/llvm-mingw && \
-    # Remove i686 and x86_64 toolchains (we use mingw-w64 for x86_64, llvm-mingw only for aarch64) \
+    mv /opt/llvm-mingw-$LLVM_MINGW_VERSION-ucrt-ubuntu-20.04-$LLVM_HOST_ARCH /opt/llvm-mingw && \
+    # Remove i686 and armv7 toolchains (not needed, keep x86_64 and aarch64) \
     rm -rf /opt/llvm-mingw/i686-w64-mingw32 && \
-    rm -rf /opt/llvm-mingw/x86_64-w64-mingw32 && \
     rm -rf /opt/llvm-mingw/armv7-w64-mingw32 && \
     # Remove lib directories for removed targets \
     find /opt/llvm-mingw/lib -name '*i686*' -delete 2>/dev/null || true && \
-    find /opt/llvm-mingw/lib -name '*x86_64*' -delete 2>/dev/null || true
+    find /opt/llvm-mingw/lib -name '*armv7*' -delete 2>/dev/null || true
 
 ENV PATH=/opt/llvm-mingw/bin:$PATH
 
-# Configure Windows ARM64 cross-compiling
-RUN echo "[target.aarch64-pc-windows-gnullvm]" >> /root/.cargo/config.toml && \
+# Configure Windows cross-compiling (x64 and ARM64)
+RUN echo "[target.x86_64-pc-windows-gnullvm]" >> /root/.cargo/config.toml && \
+    echo "linker = \"/opt/llvm-mingw/bin/x86_64-w64-mingw32-clang\"" >> /root/.cargo/config.toml && \
+    echo "" >> /root/.cargo/config.toml && \
+    echo "[target.aarch64-pc-windows-gnullvm]" >> /root/.cargo/config.toml && \
     echo "linker = \"/opt/llvm-mingw/bin/aarch64-w64-mingw32-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml
 
@@ -173,6 +181,7 @@ RUN echo "[target.x86_64-apple-darwin]" >> /root/.cargo/config.toml && \
 
 # Install Godot 4
 # ---------------
+# Binary depends on host architecture (x86_64 or arm64)
 
 ENV GODOT_VERSION=4.5.1
 ARG GODOT_BASE_URL=https://github.com/godotengine/godot/releases/download
@@ -180,11 +189,12 @@ ENV GODOT_DIR=/opt/godotengine
 
 WORKDIR $GODOT_DIR
 
-RUN wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION-stable/Godot_v$GODOT_VERSION-stable_linux.x86_64.zip && \
-    unzip -q Godot_v$GODOT_VERSION-stable_linux.x86_64.zip && \
-    rm Godot_v$GODOT_VERSION-stable_linux.x86_64.zip && \
-    ln -s Godot_v$GODOT_VERSION-stable_linux.x86_64 godot4 && \
-    ln -s Godot_v$GODOT_VERSION-stable_linux.x86_64 godot
+RUN GODOT_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "arm64"; else echo "x86_64"; fi) && \
+    wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION-stable/Godot_v$GODOT_VERSION-stable_linux.$GODOT_ARCH.zip && \
+    unzip -q Godot_v$GODOT_VERSION-stable_linux.$GODOT_ARCH.zip && \
+    rm Godot_v$GODOT_VERSION-stable_linux.$GODOT_ARCH.zip && \
+    ln -s Godot_v$GODOT_VERSION-stable_linux.$GODOT_ARCH godot4 && \
+    ln -s Godot_v$GODOT_VERSION-stable_linux.$GODOT_ARCH godot
 
 ENV PATH=$GODOT_DIR:$PATH
 
@@ -210,10 +220,11 @@ RUN keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -key
 ARG GODOT_EDITOR_CONFIG_DIR=/root/.config/godot
 ARG GODOT_EDITOR_CONFIG_FILENAME=editor_settings-4.tres
 WORKDIR $GODOT_EDITOR_CONFIG_DIR
-RUN echo '[gd_resource type="EditorSettings" format=3]' >> $GODOT_EDITOR_CONFIG_FILENAME && \
+RUN JAVA_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "arm64"; else echo "amd64"; fi) && \
+    echo '[gd_resource type="EditorSettings" format=3]' >> $GODOT_EDITOR_CONFIG_FILENAME && \
     echo '' >> $GODOT_EDITOR_CONFIG_FILENAME && \
     echo '[resource]' >> $GODOT_EDITOR_CONFIG_FILENAME && \
-    echo 'export/android/java_sdk_path = "/usr/lib/jvm/java-17-openjdk-amd64"' >> $GODOT_EDITOR_CONFIG_FILENAME && \
+    echo "export/android/java_sdk_path = \"/usr/lib/jvm/java-17-openjdk-$JAVA_ARCH\"" >> $GODOT_EDITOR_CONFIG_FILENAME && \
     echo 'export/android/android_sdk_path = "/opt/android-build-tools/android-sdk"' >> $GODOT_EDITOR_CONFIG_FILENAME && \
     echo 'export/android/debug_keystore = "/root/.android/debug.keystore"' >> $GODOT_EDITOR_CONFIG_FILENAME && \
     echo 'export/android/debug_keystore_user = "androiddebugkey"' >> $GODOT_EDITOR_CONFIG_FILENAME && \
