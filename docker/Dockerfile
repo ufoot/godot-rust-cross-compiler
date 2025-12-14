@@ -17,7 +17,7 @@ RUN apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
     apt-get install -yq --no-install-recommends \
     sudo curl wget git zip unzip xz-utils \
-    file g++ cmake pkg-config \
+    file g++ gcc make cmake pkg-config \
     libasound2-dev bison flex \
     openjdk-17-jre-headless \
     libssl-dev python3 python-is-python3 \
