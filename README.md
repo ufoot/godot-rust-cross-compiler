@@ -64,7 +64,7 @@ docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler \
 
 ```sh
 docker run -v $(pwd):/build \
-    -e CC=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23-clang \
+    -e CC=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23.5-clang \
     -e C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include \
     ufoot/godot-rust-cross-compiler \
     cargo build --release --target aarch64-apple-darwin
@@ -231,10 +231,10 @@ The Docker image pre-configures `~/.cargo/config.toml` with linkers for all targ
 linker = "/opt/android-build-tools/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang"
 
 [target.x86_64-apple-darwin]
-linker = "/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin23-clang"
+linker = "/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin23.5-clang"
 
 [target.aarch64-apple-darwin]
-linker = "/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23-clang"
+linker = "/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23.5-clang"
 
 [target.x86_64-pc-windows-gnullvm]
 linker = "/opt/llvm-mingw/bin/x86_64-w64-mingw32-clang"
@@ -253,8 +253,8 @@ Some targets require environment variable overrides:
 
 | Target | Required Variables |
 |--------|-------------------|
-| macOS x64 | `CC=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin23-clang`<br>`C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include` |
-| macOS ARM64 | `CC=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23-clang`<br>`C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include` |
+| macOS x64 | `CC=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin23.5-clang`<br>`C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include` |
+| macOS ARM64 | `CC=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23.5-clang`<br>`C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include` |
 
 Android, Linux, Windows, and WASM targets work without additional environment variables.
 

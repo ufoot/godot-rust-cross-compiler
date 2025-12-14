@@ -181,8 +181,8 @@ GRCC_CROSS_COMPILER_CACHE_DIR=target/cross-compiler-cache
 
 GRCC_WINDOWS_MINGW_HEADERS=/opt/llvm-mingw/x86_64-w64-mingw32/include
 GRCC_MACOSX_SDK_HEADERS=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include
-GRCC_MACOSX_SDK_CC_X64=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin23-clang
-GRCC_MACOSX_SDK_CC_ARM64=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23-clang
+GRCC_MACOSX_SDK_CC_X64=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin23.5-clang
+GRCC_MACOSX_SDK_CC_ARM64=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23.5-clang
 
 GRCC_EXPORT_DIR=export
 GRCC_EXPORT_WINDOWS_X64_PKG=$(GRCC_GAME_PKG_NAME)-windows-x64-v$(GRCC_GAME_PKG_VERSION)

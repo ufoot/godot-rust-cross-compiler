@@ -181,11 +181,12 @@ RUN UNATTENDED=yes OSX_VERSION_MIN=11.0 TARGET_DIR=$MACOSX_CROSS_COMPILER_PATH .
 ENV PATH=$MACOSX_CROSS_COMPILER_PATH/bin:$PATH
 
 # Configure Rust for Mac OS X cross-compiling
+# Note: darwin version suffix matches SDK version (14.5 -> darwin23.5)
 RUN echo "[target.x86_64-apple-darwin]" >> /root/.cargo/config.toml && \
-    echo "linker = \"$MACOSX_CROSS_COMPILER_PATH/bin/x86_64-apple-darwin23-clang\"" >> /root/.cargo/config.toml && \
+    echo "linker = \"$MACOSX_CROSS_COMPILER_PATH/bin/x86_64-apple-darwin23.5-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml && \
     echo "[target.aarch64-apple-darwin]" >> /root/.cargo/config.toml && \
-    echo "linker = \"$MACOSX_CROSS_COMPILER_PATH/bin/aarch64-apple-darwin23-clang\"" >> /root/.cargo/config.toml && \
+    echo "linker = \"$MACOSX_CROSS_COMPILER_PATH/bin/aarch64-apple-darwin23.5-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml
 
 # Install Godot 4
