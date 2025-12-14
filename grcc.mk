@@ -42,15 +42,29 @@
 .PHONY: grcc-copy-if-exists
 .PHONY: grcc-copy-all
 .PHONY: grcc-copy-windows
+.PHONY: grcc-copy-windows-x64
+.PHONY: grcc-copy-windows-arm64
 .PHONY: grcc-copy-android
 .PHONY: grcc-copy-macosx
 .PHONY: grcc-copy-linux
+.PHONY: grcc-copy-linux-x64
+.PHONY: grcc-copy-linux-x32
+.PHONY: grcc-copy-linux-arm64
 .PHONY: grcc-pkg-all
 .PHONY: grcc-pkg-windows
+.PHONY: grcc-pkg-windows-x64
+.PHONY: grcc-pkg-windows-arm64
+.PHONY: grcc-installer-windows
+.PHONY: grcc-installer-windows-x64
+.PHONY: grcc-installer-windows-arm64
 .PHONY: grcc-pkg-android
 .PHONY: grcc-pkg-macosx
 .PHONY: grcc-pkg-linux
+.PHONY: grcc-pkg-linux-x64
+.PHONY: grcc-pkg-linux-x32
+.PHONY: grcc-pkg-linux-arm64
 .PHONY: grcc-pkg-source
+.PHONY: grcc-dmg-macosx
 
 grcc-all: grcc-native
 
@@ -139,10 +153,23 @@ GRCC_MACOSX_SDK_CC_X64=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-d
 GRCC_MACOSX_SDK_CC_ARM64=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23-clang
 
 GRCC_EXPORT_DIR=export
-GRCC_EXPORT_WINDOWS_PKG=$(GRCC_GAME_PKG_NAME)-windows-v$(GRCC_GAME_PKG_VERSION)
+GRCC_EXPORT_WINDOWS_X64_PKG=$(GRCC_GAME_PKG_NAME)-windows-x64-v$(GRCC_GAME_PKG_VERSION)
+GRCC_EXPORT_WINDOWS_ARM64_PKG=$(GRCC_GAME_PKG_NAME)-windows-arm64-v$(GRCC_GAME_PKG_VERSION)
 GRCC_EXPORT_ANDROID_PKG=$(GRCC_GAME_PKG_NAME)-android-v$(GRCC_GAME_PKG_VERSION)
 GRCC_EXPORT_MACOSX_PKG=$(GRCC_GAME_PKG_NAME)-macosx-v$(GRCC_GAME_PKG_VERSION)
-GRCC_EXPORT_LINUX_PKG=$(GRCC_GAME_PKG_NAME)-linux-v$(GRCC_GAME_PKG_VERSION)
+GRCC_EXPORT_LINUX_X64_PKG=$(GRCC_GAME_PKG_NAME)-linux-x64-v$(GRCC_GAME_PKG_VERSION)
+GRCC_EXPORT_LINUX_X32_PKG=$(GRCC_GAME_PKG_NAME)-linux-x32-v$(GRCC_GAME_PKG_VERSION)
+GRCC_EXPORT_LINUX_ARM64_PKG=$(GRCC_GAME_PKG_NAME)-linux-arm64-v$(GRCC_GAME_PKG_VERSION)
+
+# Windows installer settings
+GRCC_INSTALLER_TEMPLATE=/opt/grcc/installer.nsi.template
+GRCC_INSTALLER_WINDOWS_X64=$(GRCC_GAME_PKG_NAME)-windows-x64-v$(GRCC_GAME_PKG_VERSION)-setup.exe
+GRCC_INSTALLER_WINDOWS_ARM64=$(GRCC_GAME_PKG_NAME)-windows-arm64-v$(GRCC_GAME_PKG_VERSION)-setup.exe
+GRCC_GAME_PUBLISHER?=Unknown Publisher
+
+# macOS DMG settings
+GRCC_DMG_MACOSX=$(GRCC_GAME_PKG_NAME)-macosx-v$(GRCC_GAME_PKG_VERSION).dmg
+GRCC_DMG_VOLUME_NAME=$(GRCC_GAME_PKG_NAME)
 
 # Godot 4 uses --headless instead of separate headless binary
 GRCC_GODOT_HEADLESS=godot --headless
@@ -279,37 +306,64 @@ grcc-copy-if-exists:
 
 grcc-copy-all: grcc-copy-windows grcc-copy-android grcc-copy-macosx grcc-copy-linux
 
-grcc-copy-windows: grcc-lib-windows-x64
+grcc-copy-windows: grcc-copy-windows-x64 grcc-copy-windows-arm64
+
+grcc-copy-windows-x64: grcc-lib-windows-x64
 	install -d $(GRCC_WINDOWS_X64_DST) && cp $(GRCC_WINDOWS_X64_SRC) $(GRCC_WINDOWS_X64_DST)
 
-grcc-copy-android: grcc-lib-android-arm64 grcc-lib-android-arm32
+grcc-copy-windows-arm64: grcc-lib-windows-arm64
+	install -d $(GRCC_WINDOWS_ARM64_DST) && cp $(GRCC_WINDOWS_ARM64_SRC) $(GRCC_WINDOWS_ARM64_DST)
+
+grcc-copy-android: grcc-lib-android-arm64 grcc-lib-android-arm32 grcc-lib-android-x64 grcc-lib-android-x32
 	install -d $(GRCC_ANDROID_ARM64_DST) && cp $(GRCC_ANDROID_ARM64_SRC) $(GRCC_ANDROID_ARM64_DST)
 	install -d $(GRCC_ANDROID_ARM32_DST) && cp $(GRCC_ANDROID_ARM32_SRC) $(GRCC_ANDROID_ARM32_DST)
+	install -d $(GRCC_ANDROID_X64_DST) && cp $(GRCC_ANDROID_X64_SRC) $(GRCC_ANDROID_X64_DST)
+	install -d $(GRCC_ANDROID_X32_DST) && cp $(GRCC_ANDROID_X32_SRC) $(GRCC_ANDROID_X32_DST)
 
 grcc-copy-macosx: grcc-lib-macosx-x64 grcc-lib-macosx-arm64
 	install -d $(GRCC_MACOSX_X64_DST) && cp $(GRCC_MACOSX_X64_SRC) $(GRCC_MACOSX_X64_DST)
 	install -d $(GRCC_MACOSX_ARM64_DST) && cp $(GRCC_MACOSX_ARM64_SRC) $(GRCC_MACOSX_ARM64_DST)
 
-grcc-copy-linux: grcc-lib-linux-x64
+grcc-copy-linux: grcc-copy-linux-x64 grcc-copy-linux-x32 grcc-copy-linux-arm64
+
+grcc-copy-linux-x64: grcc-lib-linux-x64
 	install -d $(GRCC_LINUX_X64_DST) && cp $(GRCC_LINUX_X64_SRC) $(GRCC_LINUX_X64_DST)
+
+grcc-copy-linux-x32: grcc-lib-linux-x32
+	install -d $(GRCC_LINUX_X32_DST) && cp $(GRCC_LINUX_X32_SRC) $(GRCC_LINUX_X32_DST)
+
+grcc-copy-linux-arm64: grcc-lib-linux-arm64
+	install -d $(GRCC_LINUX_ARM64_DST) && cp $(GRCC_LINUX_ARM64_SRC) $(GRCC_LINUX_ARM64_DST)
 
 grcc-pkg-all: grcc-pkg-windows grcc-pkg-android grcc-pkg-macosx grcc-pkg-linux grcc-pkg-source
 
 # [TODO] report this bug, need to launch the export twice for it to work, else complains about missing lib
 GRCC_PKG_BUILDX2=godot/buildx2.sh
 
-# Godot 4 export preset names
-GRCC_EXPORT_PRESET_WINDOWS=Windows Desktop
+# Godot 4 export preset names (architecture-specific presets must be defined in export_presets.cfg)
+GRCC_EXPORT_PRESET_WINDOWS_X64=Windows Desktop x64
+GRCC_EXPORT_PRESET_WINDOWS_ARM64=Windows Desktop arm64
 GRCC_EXPORT_PRESET_ANDROID=Android
 GRCC_EXPORT_PRESET_MACOSX=macOS
-GRCC_EXPORT_PRESET_LINUX=Linux
+GRCC_EXPORT_PRESET_LINUX_X64=Linux x64
+GRCC_EXPORT_PRESET_LINUX_X32=Linux x32
+GRCC_EXPORT_PRESET_LINUX_ARM64=Linux arm64
 
-grcc-pkg-windows: grcc-copy-windows
-	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_PKG).zip godot/$(GRCC_GAME_PKG_NAME).exe godot/$(GRCC_GODOT_RUST_LIB_NAME).dll
-	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_WINDOWS)" $(GRCC_GAME_PKG_NAME).exe ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
-	install -d $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_PKG)
-	mv godot/$(GRCC_GAME_PKG_NAME).exe godot/$(GRCC_GODOT_RUST_LIB_NAME).dll $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_PKG)
-	cd $(GRCC_EXPORT_DIR) && zip -r $(GRCC_EXPORT_WINDOWS_PKG).zip $(GRCC_EXPORT_WINDOWS_PKG) && rm -rf $(GRCC_EXPORT_WINDOWS_PKG)
+grcc-pkg-windows: grcc-pkg-windows-x64 grcc-pkg-windows-arm64
+
+grcc-pkg-windows-x64: grcc-copy-windows-x64
+	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_X64_PKG).zip godot/$(GRCC_GAME_PKG_NAME).exe godot/$(GRCC_GODOT_RUST_LIB_NAME).dll
+	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_WINDOWS_X64)" $(GRCC_GAME_PKG_NAME).exe ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
+	install -d $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_X64_PKG)
+	mv godot/$(GRCC_GAME_PKG_NAME).exe godot/$(GRCC_GODOT_RUST_LIB_NAME).dll $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_X64_PKG)
+	cd $(GRCC_EXPORT_DIR) && zip -r $(GRCC_EXPORT_WINDOWS_X64_PKG).zip $(GRCC_EXPORT_WINDOWS_X64_PKG) && rm -rf $(GRCC_EXPORT_WINDOWS_X64_PKG)
+
+grcc-pkg-windows-arm64: grcc-copy-windows-arm64
+	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_ARM64_PKG).zip godot/$(GRCC_GAME_PKG_NAME).exe godot/$(GRCC_GODOT_RUST_LIB_NAME).dll
+	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_WINDOWS_ARM64)" $(GRCC_GAME_PKG_NAME).exe ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
+	install -d $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_ARM64_PKG)
+	mv godot/$(GRCC_GAME_PKG_NAME).exe godot/$(GRCC_GODOT_RUST_LIB_NAME).dll $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_ARM64_PKG)
+	cd $(GRCC_EXPORT_DIR) && zip -r $(GRCC_EXPORT_WINDOWS_ARM64_PKG).zip $(GRCC_EXPORT_WINDOWS_ARM64_PKG) && rm -rf $(GRCC_EXPORT_WINDOWS_ARM64_PKG)
 
 grcc-pkg-android: grcc-copy-android
 	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_ANDROID_PKG).apk godot/$(GRCC_EXPORT_ANDROID_PKG).apk
@@ -321,12 +375,79 @@ grcc-pkg-macosx: grcc-copy-macosx
 	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_MACOSX)" $(GRCC_EXPORT_MACOSX_PKG).zip ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
 	install -d $(GRCC_EXPORT_DIR) && mv godot/$(GRCC_EXPORT_MACOSX_PKG).zip $(GRCC_EXPORT_DIR)
 
-grcc-pkg-linux: grcc-copy-linux
-	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_PKG).zip godot/lib
-	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_LINUX)" $(GRCC_GAME_PKG_NAME) ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
-	install -d $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_PKG)
-	mv godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_PKG)
-	cd $(GRCC_EXPORT_DIR) && tar czf $(GRCC_EXPORT_LINUX_PKG).tar.gz $(GRCC_EXPORT_LINUX_PKG) && rm -rf $(GRCC_EXPORT_LINUX_PKG)
+grcc-pkg-linux: grcc-pkg-linux-x64 grcc-pkg-linux-x32 grcc-pkg-linux-arm64
+
+grcc-pkg-linux-x64: grcc-copy-linux-x64
+	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_X64_PKG).tar.gz godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so
+	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_LINUX_X64)" $(GRCC_GAME_PKG_NAME) ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
+	install -d $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_X64_PKG)
+	mv godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_X64_PKG)
+	cd $(GRCC_EXPORT_DIR) && tar czf $(GRCC_EXPORT_LINUX_X64_PKG).tar.gz $(GRCC_EXPORT_LINUX_X64_PKG) && rm -rf $(GRCC_EXPORT_LINUX_X64_PKG)
+
+grcc-pkg-linux-x32: grcc-copy-linux-x32
+	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_X32_PKG).tar.gz godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so
+	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_LINUX_X32)" $(GRCC_GAME_PKG_NAME) ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
+	install -d $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_X32_PKG)
+	mv godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_X32_PKG)
+	cd $(GRCC_EXPORT_DIR) && tar czf $(GRCC_EXPORT_LINUX_X32_PKG).tar.gz $(GRCC_EXPORT_LINUX_X32_PKG) && rm -rf $(GRCC_EXPORT_LINUX_X32_PKG)
+
+grcc-pkg-linux-arm64: grcc-copy-linux-arm64
+	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_ARM64_PKG).tar.gz godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so
+	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_LINUX_ARM64)" $(GRCC_GAME_PKG_NAME) ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
+	install -d $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_ARM64_PKG)
+	mv godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_ARM64_PKG)
+	cd $(GRCC_EXPORT_DIR) && tar czf $(GRCC_EXPORT_LINUX_ARM64_PKG).tar.gz $(GRCC_EXPORT_LINUX_ARM64_PKG) && rm -rf $(GRCC_EXPORT_LINUX_ARM64_PKG)
 
 grcc-pkg-source: .git/config grcc-clean-prepare
 	export REPO="$$(grep url .git/config | head -n 1 | cut -d = -f 2)" && install -d $(GRCC_EXPORT_DIR) && rm -f $(GRCC_EXPORT_DIR)/$(GRCC_GAME_REPO_NAME).tar && tar cf $(GRCC_EXPORT_DIR)/$(GRCC_GAME_REPO_NAME).tar --exclude=.git --exclude=export --exclude=rust/target --exclude=godot/.godot . && cd $(GRCC_EXPORT_DIR) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -f $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip && mkdir $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && cd $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && tar xf ../$(GRCC_GAME_REPO_NAME).tar && cd .. && rm $(GRCC_GAME_REPO_NAME).tar && tar czf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && zip -r $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION)
+
+# Windows installers (NSIS)
+# -------------------------
+
+grcc-installer-windows: grcc-installer-windows-x64 grcc-installer-windows-arm64
+
+GRCC_INSTALLER_BUILDSCRIPT=godot/installer-build.sh
+
+grcc-installer-windows-x64: grcc-pkg-windows-x64
+	install -d $(GRCC_EXPORT_DIR)
+	cd $(GRCC_EXPORT_DIR) && unzip -o $(GRCC_EXPORT_WINDOWS_X64_PKG).zip
+	echo 'makensis -DGAME_NAME="$(GRCC_GAME_PKG_NAME)" \
+		-DGAME_VERSION="$(GRCC_GAME_PKG_VERSION)" \
+		-DGAME_PUBLISHER="$(GRCC_GAME_PUBLISHER)" \
+		-DEXE_FILE="$(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_X64_PKG)/$(GRCC_GAME_PKG_NAME).exe" \
+		-DEXE_NAME="$(GRCC_GAME_PKG_NAME).exe" \
+		-DDLL_FILE="$(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_X64_PKG)/$(GRCC_GODOT_RUST_LIB_NAME).dll" \
+		-DDLL_NAME="$(GRCC_GODOT_RUST_LIB_NAME).dll" \
+		-DOUTPUT_FILE="$(GRCC_EXPORT_DIR)/$(GRCC_INSTALLER_WINDOWS_X64)" \
+		$(GRCC_INSTALLER_TEMPLATE)' > $(GRCC_INSTALLER_BUILDSCRIPT) && chmod a+x $(GRCC_INSTALLER_BUILDSCRIPT) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_INSTALLER_BUILDSCRIPT) && rm $(GRCC_INSTALLER_BUILDSCRIPT)
+	rm -rf $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_X64_PKG)
+
+grcc-installer-windows-arm64: grcc-pkg-windows-arm64
+	install -d $(GRCC_EXPORT_DIR)
+	cd $(GRCC_EXPORT_DIR) && unzip -o $(GRCC_EXPORT_WINDOWS_ARM64_PKG).zip
+	echo 'makensis -DGAME_NAME="$(GRCC_GAME_PKG_NAME)" \
+		-DGAME_VERSION="$(GRCC_GAME_PKG_VERSION)" \
+		-DGAME_PUBLISHER="$(GRCC_GAME_PUBLISHER)" \
+		-DEXE_FILE="$(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_ARM64_PKG)/$(GRCC_GAME_PKG_NAME).exe" \
+		-DEXE_NAME="$(GRCC_GAME_PKG_NAME).exe" \
+		-DDLL_FILE="$(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_ARM64_PKG)/$(GRCC_GODOT_RUST_LIB_NAME).dll" \
+		-DDLL_NAME="$(GRCC_GODOT_RUST_LIB_NAME).dll" \
+		-DOUTPUT_FILE="$(GRCC_EXPORT_DIR)/$(GRCC_INSTALLER_WINDOWS_ARM64)" \
+		$(GRCC_INSTALLER_TEMPLATE)' > $(GRCC_INSTALLER_BUILDSCRIPT) && chmod a+x $(GRCC_INSTALLER_BUILDSCRIPT) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_INSTALLER_BUILDSCRIPT) && rm $(GRCC_INSTALLER_BUILDSCRIPT)
+	rm -rf $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_ARM64_PKG)
+
+# macOS DMG (disk image)
+# ----------------------
+# Creates a DMG from the macOS zip export
+# Uses genisoimage to create hybrid ISO and libdmg-hfsplus to convert to DMG
+
+GRCC_DMG_BUILDSCRIPT=godot/dmg-build.sh
+
+grcc-dmg-macosx: grcc-pkg-macosx
+	install -d $(GRCC_EXPORT_DIR)
+	rm -rf $(GRCC_EXPORT_DIR)/dmg-staging $(GRCC_EXPORT_DIR)/$(GRCC_DMG_MACOSX)
+	mkdir -p $(GRCC_EXPORT_DIR)/dmg-staging
+	cd $(GRCC_EXPORT_DIR)/dmg-staging && unzip -q ../$(GRCC_EXPORT_MACOSX_PKG).zip
+	echo 'genisoimage -V "$(GRCC_DMG_VOLUME_NAME)" -D -R -apple -no-pad -o $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_MACOSX_PKG).cdr $(GRCC_EXPORT_DIR)/dmg-staging && \
+		dmg $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_MACOSX_PKG).cdr $(GRCC_EXPORT_DIR)/$(GRCC_DMG_MACOSX)' > $(GRCC_DMG_BUILDSCRIPT) && chmod a+x $(GRCC_DMG_BUILDSCRIPT) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_DMG_BUILDSCRIPT) && rm $(GRCC_DMG_BUILDSCRIPT)
+	rm -rf $(GRCC_EXPORT_DIR)/dmg-staging $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_MACOSX_PKG).cdr

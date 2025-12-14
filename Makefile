@@ -5,6 +5,8 @@ GRCC_GAME_PKG_VERSION=0.3.0
 GRCC_GODOT_RUST_LIB_NAME=cctoy
 # replace godot-rust-cross-compiler by your repo name
 GRCC_GAME_REPO_NAME=godot-rust-cross-compiler
+# publisher name for Windows installers
+GRCC_GAME_PUBLISHER=ufoot
 
 include grcc.mk
 
@@ -19,3 +21,7 @@ native: grcc-native
 cross: grcc-cross
 
 export: grcc-export
+
+installer: grcc-installer-windows
+
+dmg: grcc-dmg-macosx

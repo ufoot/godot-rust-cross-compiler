@@ -11,25 +11,25 @@ LABEL package="godot-rust-cross-compiler" version="$GRCC_VERSION" description="A
 
 # Prepare the system, install Debian packages
 # -------------------------------------------
-# Combined into single RUN to reduce layers and clean apt cache
 
-RUN apt-get update && \
-    DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
-    apt-get install -yq --no-install-recommends \
+RUN apt-get update
+RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata
+RUN apt-get install -yq \
     sudo curl wget git zip unzip xz-utils \
-    file g++ gcc make cmake pkg-config \
+    file g++ cmake pkg-config \
     libasound2-dev bison flex \
-    openjdk-17-jre-headless \
+    openjdk-17-jdk \
     libssl-dev python3 python-is-python3 \
     llvm-dev libclang-dev clang \
     libncurses-dev \
     binutils-mingw-w64 gcc-mingw-w64 g++-mingw-w64 \
     libxml2-dev zlib1g-dev \
-    ca-certificates \
+    ca-certificates default-jre-headless \
     xvfb \
     gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    nsis \
+    genisoimage \
+    && apt-get clean
 
 # Install Android command line tools and NDK
 # ------------------------------------------
@@ -154,14 +154,12 @@ ARG MACOSX_SDK_FILENAME=MacOSX$MACOSX_SDK_VERSION.sdk.tar.xz
 
 WORKDIR $MACOSX_BUILD_TOOLS_PATH
 
-# Build osxcross, then remove source and build artifacts to save ~500MB
-RUN git clone --depth 1 https://github.com/tpoechtrager/osxcross && \
-    cd osxcross && \
-    wget -nc -nv $MACOSX_SDK_BASE_URL/$MACOSX_SDK_FILENAME && \
-    mv $MACOSX_SDK_FILENAME tarballs/ && \
-    UNATTENDED=yes OSX_VERSION_MIN=11.0 TARGET_DIR=$MACOSX_CROSS_COMPILER_PATH ./build.sh && \
-    cd .. && \
-    rm -rf osxcross
+RUN git clone https://github.com/tpoechtrager/osxcross
+
+WORKDIR $OSXCROSS_PATH
+RUN wget -nc -nv $MACOSX_SDK_BASE_URL/$MACOSX_SDK_FILENAME
+RUN mv $MACOSX_SDK_FILENAME tarballs/
+RUN UNATTENDED=yes OSX_VERSION_MIN=11.0 TARGET_DIR=$MACOSX_CROSS_COMPILER_PATH ./build.sh 2>&1 | tee build.log
 
 ENV PATH=$MACOSX_CROSS_COMPILER_PATH/bin:$PATH
 
@@ -176,7 +174,7 @@ RUN echo "[target.x86_64-apple-darwin]" >> /root/.cargo/config.toml && \
 # Install Godot 4
 # ---------------
 
-ENV GODOT_VERSION=4.3
+ENV GODOT_VERSION=4.5.1
 ARG GODOT_BASE_URL=https://github.com/godotengine/godot/releases/download
 ENV GODOT_DIR=/opt/godotengine
 
@@ -226,6 +224,12 @@ RUN echo '[gd_resource type="EditorSettings" format=3]' >> $GODOT_EDITOR_CONFIG_
 
 WORKDIR /opt
 RUN echo $GRCC_VERSION > godot-rust-cross-compiler.txt
+
+# Install GRCC resources (installer templates, etc.)
+# --------------------------------------------------
+
+RUN mkdir -p /opt/grcc
+COPY installer.nsi.template /opt/grcc/installer.nsi.template
 
 # Work in /build
 # --------------
