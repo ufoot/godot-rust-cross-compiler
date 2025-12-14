@@ -34,7 +34,6 @@
 .PHONY: grcc-lib-macosx-arm64
 .PHONY: grcc-lib-linux
 .PHONY: grcc-lib-linux-x64
-.PHONY: grcc-lib-linux-x32
 .PHONY: grcc-lib-linux-arm64
 .PHONY: grcc-lib-wasm
 .PHONY: grcc-native
@@ -49,7 +48,6 @@
 .PHONY: grcc-copy-macosx
 .PHONY: grcc-copy-linux
 .PHONY: grcc-copy-linux-x64
-.PHONY: grcc-copy-linux-x32
 .PHONY: grcc-copy-linux-arm64
 .PHONY: grcc-copy-wasm
 .PHONY: grcc-pkg-all
@@ -63,7 +61,6 @@
 .PHONY: grcc-pkg-macosx
 .PHONY: grcc-pkg-linux
 .PHONY: grcc-pkg-linux-x64
-.PHONY: grcc-pkg-linux-x32
 .PHONY: grcc-pkg-linux-arm64
 .PHONY: grcc-pkg-wasm
 .PHONY: grcc-pkg-source
@@ -88,7 +85,6 @@ GRCC_ANDROID_X32_TARGET=i686-linux-android
 GRCC_MACOSX_X64_TARGET=x86_64-apple-darwin
 GRCC_MACOSX_ARM64_TARGET=aarch64-apple-darwin
 GRCC_LINUX_X64_TARGET=x86_64-unknown-linux-gnu
-GRCC_LINUX_X32_TARGET=i686-unknown-linux-gnu
 GRCC_LINUX_ARM64_TARGET=aarch64-unknown-linux-gnu
 GRCC_WASM_TARGET=wasm32-unknown-unknown
 
@@ -121,6 +117,38 @@ GRCC_USE_DOCKER=no
 GRCC_INVOKE_DOCKER_GODOT_EXPORT=
 endif
 
+# Detect host architecture for Android NDK limitation
+# Google does not provide Android NDK toolchains for arm64 Linux hosts.
+# Android builds require an x86_64 host (or x86_64 Docker image under Rosetta).
+GRCC_HOST_ARCH := $(shell uname -m)
+GRCC_HOST_IS_ARM64 := $(filter aarch64 arm64,$(GRCC_HOST_ARCH))
+
+define GRCC_ANDROID_ARM64_HOST_ERROR
+
+ERROR: Android builds are not supported on arm64 Linux hosts.
+
+The Android NDK only provides toolchains for x86_64 Linux hosts.
+Google does not ship arm64 Linux host toolchains.
+
+Workarounds:
+  1. Use an x86_64 Docker image: docker build --platform linux/amd64 ...
+  2. Build on an x86_64 machine
+  3. Use native macOS (NDK includes arm64 macOS support)
+
+See: https://github.com/android/ndk/issues/1440
+
+endef
+export GRCC_ANDROID_ARM64_HOST_ERROR
+
+.PHONY: grcc-check-android-host
+grcc-check-android-host:
+ifeq (yes,$(GRCC_USE_DOCKER))
+ifneq (,$(GRCC_HOST_IS_ARM64))
+	@echo "$$GRCC_ANDROID_ARM64_HOST_ERROR"
+	@exit 1
+endif
+endif
+
 GRCC_NATIVE_DEBUG_WINDOWS_SRC=./rust/target/debug/$(GRCC_GODOT_RUST_LIB_NAME).dll
 GRCC_NATIVE_DEBUG_MACOSX_SRC=./rust/target/debug/lib$(GRCC_GODOT_RUST_LIB_NAME).dylib
 GRCC_NATIVE_DEBUG_LINUX_SRC=./rust/target/debug/lib$(GRCC_GODOT_RUST_LIB_NAME).so
@@ -144,8 +172,6 @@ GRCC_MACOSX_ARM64_SRC=./rust/target/$(GRCC_MACOSX_ARM64_TARGET)/release/lib$(GRC
 GRCC_MACOSX_ARM64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/macosx/$(GRCC_MACOSX_ARM64_TARGET)/
 GRCC_LINUX_X64_SRC=./rust/target/$(GRCC_LINUX_X64_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
 GRCC_LINUX_X64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/linux/$(GRCC_LINUX_X64_TARGET)/
-GRCC_LINUX_X32_SRC=./rust/target/$(GRCC_LINUX_X32_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
-GRCC_LINUX_X32_DST=$(GRCC_GODOT_GDNATIVE_DIR)/linux/$(GRCC_LINUX_X32_TARGET)/
 GRCC_LINUX_ARM64_SRC=./rust/target/$(GRCC_LINUX_ARM64_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
 GRCC_LINUX_ARM64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/linux/$(GRCC_LINUX_ARM64_TARGET)/
 GRCC_WASM_SRC=./rust/target/$(GRCC_WASM_TARGET)/release/$(GRCC_GODOT_RUST_LIB_NAME).wasm
@@ -164,7 +190,6 @@ GRCC_EXPORT_WINDOWS_ARM64_PKG=$(GRCC_GAME_PKG_NAME)-windows-arm64-v$(GRCC_GAME_P
 GRCC_EXPORT_ANDROID_PKG=$(GRCC_GAME_PKG_NAME)-android-v$(GRCC_GAME_PKG_VERSION)
 GRCC_EXPORT_MACOSX_PKG=$(GRCC_GAME_PKG_NAME)-macosx-v$(GRCC_GAME_PKG_VERSION)
 GRCC_EXPORT_LINUX_X64_PKG=$(GRCC_GAME_PKG_NAME)-linux-x64-v$(GRCC_GAME_PKG_VERSION)
-GRCC_EXPORT_LINUX_X32_PKG=$(GRCC_GAME_PKG_NAME)-linux-x32-v$(GRCC_GAME_PKG_VERSION)
 GRCC_EXPORT_LINUX_ARM64_PKG=$(GRCC_GAME_PKG_NAME)-linux-arm64-v$(GRCC_GAME_PKG_VERSION)
 GRCC_EXPORT_WASM_PKG=$(GRCC_GAME_PKG_NAME)-web-v$(GRCC_GAME_PKG_VERSION)
 
@@ -218,30 +243,30 @@ else
 	cd rust && cargo build --release --target $(GRCC_WINDOWS_ARM64_TARGET)
 endif
 
-grcc-lib-android: grcc-lib-android-arm64 grcc-lib-android-arm32 grcc-lib-android-x64 grcc-lib-android-x32
+grcc-lib-android: grcc-check-android-host grcc-lib-android-arm64 grcc-lib-android-arm32 grcc-lib-android-x64 grcc-lib-android-x32
 
-grcc-lib-android-arm64:
+grcc-lib-android-arm64: grcc-check-android-host
 ifeq (yes,$(GRCC_USE_DOCKER))
 	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_ANDROID_ARM64_TARGET)
 else
 	cd rust && cargo build --release --target $(GRCC_ANDROID_ARM64_TARGET)
 endif
 
-grcc-lib-android-arm32:
+grcc-lib-android-arm32: grcc-check-android-host
 ifeq (yes,$(GRCC_USE_DOCKER))
 	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_ANDROID_ARM32_TARGET)
 else
 	cd rust && cargo build --release --target $(GRCC_ANDROID_ARM32_TARGET)
 endif
 
-grcc-lib-android-x64:
+grcc-lib-android-x64: grcc-check-android-host
 ifeq (yes,$(GRCC_USE_DOCKER))
 	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_ANDROID_X64_TARGET)
 else
 	cd rust && cargo build --release --target $(GRCC_ANDROID_X64_TARGET)
 endif
 
-grcc-lib-android-x32:
+grcc-lib-android-x32: grcc-check-android-host
 ifeq (yes,$(GRCC_USE_DOCKER))
 	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_ANDROID_X32_TARGET)
 else
@@ -264,20 +289,13 @@ else
 	export CC=$(GRCC_MACOSX_SDK_CC_ARM64) C_INCLUDE_PATH=$(GRCC_MACOSX_SDK_HEADERS) && cd rust && cargo build --release --target $(GRCC_MACOSX_ARM64_TARGET)
 endif
 
-grcc-lib-linux: grcc-lib-linux-x64 grcc-lib-linux-x32 grcc-lib-linux-arm64
+grcc-lib-linux: grcc-lib-linux-x64 grcc-lib-linux-arm64
 
 grcc-lib-linux-x64:
 ifeq (yes,$(GRCC_USE_DOCKER))
 	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_LINUX_X64_TARGET)
 else
 	cd rust && cargo build --release --target $(GRCC_LINUX_X64_TARGET)
-endif
-
-grcc-lib-linux-x32:
-ifeq (yes,$(GRCC_USE_DOCKER))
-	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_LINUX_X32_TARGET)
-else
-	cd rust && cargo build --release --target $(GRCC_LINUX_X32_TARGET)
 endif
 
 grcc-lib-linux-arm64:
@@ -321,7 +339,6 @@ grcc-copy-if-exists:
 	if test -f $(GRCC_MACOSX_X64_SRC) ; then install -d $(GRCC_MACOSX_X64_DST) && cp $(GRCC_MACOSX_X64_SRC) $(GRCC_MACOSX_X64_DST) ; fi
 	if test -f $(GRCC_MACOSX_ARM64_SRC) ; then install -d $(GRCC_MACOSX_ARM64_DST) && cp $(GRCC_MACOSX_ARM64_SRC) $(GRCC_MACOSX_ARM64_DST) ; fi
 	if test -f $(GRCC_LINUX_X64_SRC) ; then install -d $(GRCC_LINUX_X64_DST) && cp $(GRCC_LINUX_X64_SRC) $(GRCC_LINUX_X64_DST) ; fi
-	if test -f $(GRCC_LINUX_X32_SRC) ; then install -d $(GRCC_LINUX_X32_DST) && cp $(GRCC_LINUX_X32_SRC) $(GRCC_LINUX_X32_DST) ; fi
 	if test -f $(GRCC_LINUX_ARM64_SRC) ; then install -d $(GRCC_LINUX_ARM64_DST) && cp $(GRCC_LINUX_ARM64_SRC) $(GRCC_LINUX_ARM64_DST) ; fi
 	if test -f $(GRCC_WASM_SRC) ; then install -d $(GRCC_WASM_DST) && cp $(GRCC_WASM_SRC) $(GRCC_WASM_DST) ; fi
 
@@ -335,7 +352,7 @@ grcc-copy-windows-x64: grcc-lib-windows-x64
 grcc-copy-windows-arm64: grcc-lib-windows-arm64
 	install -d $(GRCC_WINDOWS_ARM64_DST) && cp $(GRCC_WINDOWS_ARM64_SRC) $(GRCC_WINDOWS_ARM64_DST)
 
-grcc-copy-android: grcc-lib-android-arm64 grcc-lib-android-arm32 grcc-lib-android-x64 grcc-lib-android-x32
+grcc-copy-android: grcc-check-android-host grcc-lib-android-arm64 grcc-lib-android-arm32 grcc-lib-android-x64 grcc-lib-android-x32
 	install -d $(GRCC_ANDROID_ARM64_DST) && cp $(GRCC_ANDROID_ARM64_SRC) $(GRCC_ANDROID_ARM64_DST)
 	install -d $(GRCC_ANDROID_ARM32_DST) && cp $(GRCC_ANDROID_ARM32_SRC) $(GRCC_ANDROID_ARM32_DST)
 	install -d $(GRCC_ANDROID_X64_DST) && cp $(GRCC_ANDROID_X64_SRC) $(GRCC_ANDROID_X64_DST)
@@ -345,13 +362,10 @@ grcc-copy-macosx: grcc-lib-macosx-x64 grcc-lib-macosx-arm64
 	install -d $(GRCC_MACOSX_X64_DST) && cp $(GRCC_MACOSX_X64_SRC) $(GRCC_MACOSX_X64_DST)
 	install -d $(GRCC_MACOSX_ARM64_DST) && cp $(GRCC_MACOSX_ARM64_SRC) $(GRCC_MACOSX_ARM64_DST)
 
-grcc-copy-linux: grcc-copy-linux-x64 grcc-copy-linux-x32 grcc-copy-linux-arm64
+grcc-copy-linux: grcc-copy-linux-x64 grcc-copy-linux-arm64
 
 grcc-copy-linux-x64: grcc-lib-linux-x64
 	install -d $(GRCC_LINUX_X64_DST) && cp $(GRCC_LINUX_X64_SRC) $(GRCC_LINUX_X64_DST)
-
-grcc-copy-linux-x32: grcc-lib-linux-x32
-	install -d $(GRCC_LINUX_X32_DST) && cp $(GRCC_LINUX_X32_SRC) $(GRCC_LINUX_X32_DST)
 
 grcc-copy-linux-arm64: grcc-lib-linux-arm64
 	install -d $(GRCC_LINUX_ARM64_DST) && cp $(GRCC_LINUX_ARM64_SRC) $(GRCC_LINUX_ARM64_DST)
@@ -370,7 +384,6 @@ GRCC_EXPORT_PRESET_WINDOWS_ARM64=Windows Desktop arm64
 GRCC_EXPORT_PRESET_ANDROID=Android
 GRCC_EXPORT_PRESET_MACOSX=macOS
 GRCC_EXPORT_PRESET_LINUX_X64=Linux x64
-GRCC_EXPORT_PRESET_LINUX_X32=Linux x32
 GRCC_EXPORT_PRESET_LINUX_ARM64=Linux arm64
 GRCC_EXPORT_PRESET_WEB=Web
 
@@ -390,7 +403,7 @@ grcc-pkg-windows-arm64: grcc-copy-windows-arm64
 	mv godot/$(GRCC_GAME_PKG_NAME).exe godot/$(GRCC_GODOT_RUST_LIB_NAME).dll $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_ARM64_PKG)
 	cd $(GRCC_EXPORT_DIR) && zip -r $(GRCC_EXPORT_WINDOWS_ARM64_PKG).zip $(GRCC_EXPORT_WINDOWS_ARM64_PKG) && rm -rf $(GRCC_EXPORT_WINDOWS_ARM64_PKG)
 
-grcc-pkg-android: grcc-copy-android
+grcc-pkg-android: grcc-check-android-host grcc-copy-android
 	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_ANDROID_PKG).apk godot/$(GRCC_EXPORT_ANDROID_PKG).apk
 	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_ANDROID)" $(GRCC_EXPORT_ANDROID_PKG).apk ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
 	install -d $(GRCC_EXPORT_DIR) && mv godot/$(GRCC_EXPORT_ANDROID_PKG).apk $(GRCC_EXPORT_DIR)
@@ -400,7 +413,7 @@ grcc-pkg-macosx: grcc-copy-macosx
 	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_MACOSX)" $(GRCC_EXPORT_MACOSX_PKG).zip ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
 	install -d $(GRCC_EXPORT_DIR) && mv godot/$(GRCC_EXPORT_MACOSX_PKG).zip $(GRCC_EXPORT_DIR)
 
-grcc-pkg-linux: grcc-pkg-linux-x64 grcc-pkg-linux-x32 grcc-pkg-linux-arm64
+grcc-pkg-linux: grcc-pkg-linux-x64 grcc-pkg-linux-arm64
 
 grcc-pkg-linux-x64: grcc-copy-linux-x64
 	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_X64_PKG).tar.gz godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so
@@ -408,13 +421,6 @@ grcc-pkg-linux-x64: grcc-copy-linux-x64
 	install -d $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_X64_PKG)
 	mv godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_X64_PKG)
 	cd $(GRCC_EXPORT_DIR) && tar czf $(GRCC_EXPORT_LINUX_X64_PKG).tar.gz $(GRCC_EXPORT_LINUX_X64_PKG) && rm -rf $(GRCC_EXPORT_LINUX_X64_PKG)
-
-grcc-pkg-linux-x32: grcc-copy-linux-x32
-	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_X32_PKG).tar.gz godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so
-	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_LINUX_X32)" $(GRCC_GAME_PKG_NAME) ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
-	install -d $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_X32_PKG)
-	mv godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_X32_PKG)
-	cd $(GRCC_EXPORT_DIR) && tar czf $(GRCC_EXPORT_LINUX_X32_PKG).tar.gz $(GRCC_EXPORT_LINUX_X32_PKG) && rm -rf $(GRCC_EXPORT_LINUX_X32_PKG)
 
 grcc-pkg-linux-arm64: grcc-copy-linux-arm64
 	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_ARM64_PKG).tar.gz godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so

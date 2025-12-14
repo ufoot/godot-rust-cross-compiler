@@ -26,6 +26,7 @@ RUN apt-get install -yq \
     ca-certificates default-jre-headless \
     xvfb \
     gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+    gcc-x86-64-linux-gnu g++-x86-64-linux-gnu \
     nsis \
     genisoimage \
     binaryen \
@@ -48,7 +49,7 @@ WORKDIR $ANDROID_BUILD_TOOLS_PATH
 
 # Detect architecture for NDK toolchain path
 ARG TARGETARCH
-ARG NDK_VERSION=23.2.8568313
+ARG NDK_VERSION=27.2.12479018
 
 # Install SDK, NDK, then clean up unused NDK components
 RUN wget -nc -nv $ANDROID_CMDLINE_TOOLS_URL && \
@@ -72,7 +73,7 @@ RUN wget -nc -nv $ANDROID_CMDLINE_TOOLS_URL && \
     rm -rf /root/.android/cache/*
 
 ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-ENV ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/23.2.8568313
+ENV ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.2.12479018
 ENV NDK_HOME=$ANDROID_NDK_ROOT
 
 # Install bundletool for AAB support
@@ -95,7 +96,6 @@ RUN rustup target add \
     x86_64-apple-darwin \
     aarch64-apple-darwin \
     x86_64-unknown-linux-gnu \
-    i686-unknown-linux-gnu \
     aarch64-unknown-linux-gnu \
     wasm32-unknown-unknown
 
@@ -121,9 +121,16 @@ RUN NDK_HOST=$(if [ "$TARGETARCH" = "arm64" ]; then echo "linux-aarch64"; else e
     echo "[target.i686-linux-android]" >> /root/.cargo/config.toml && \
     echo "linker = \"$NDK_TOOLCHAIN/i686-linux-android${ANDROID_API_LEVEL}-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml && \
-    echo "[target.aarch64-unknown-linux-gnu]" >> /root/.cargo/config.toml && \
-    echo "linker = \"aarch64-linux-gnu-gcc\"" >> /root/.cargo/config.toml && \
-    echo "" >> /root/.cargo/config.toml
+    # Linux cross-compilation linkers (architecture-dependent) \
+    if [ "$TARGETARCH" = "arm64" ]; then \
+        echo "[target.x86_64-unknown-linux-gnu]" >> /root/.cargo/config.toml && \
+        echo "linker = \"x86_64-linux-gnu-gcc\"" >> /root/.cargo/config.toml && \
+        echo "" >> /root/.cargo/config.toml; \
+    else \
+        echo "[target.aarch64-unknown-linux-gnu]" >> /root/.cargo/config.toml && \
+        echo "linker = \"aarch64-linux-gnu-gcc\"" >> /root/.cargo/config.toml && \
+        echo "" >> /root/.cargo/config.toml; \
+    fi
 
 # Install llvm-mingw for Windows cross-compiling (x64 and ARM64)
 # URL depends on host architecture (x86_64 or aarch64)

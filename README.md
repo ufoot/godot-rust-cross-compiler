@@ -19,28 +19,28 @@ This project provides:
 Supported Platforms
 -------------------
 
-The Docker image supports **11 build targets** across 4 platforms:
+The Docker image supports **11 build targets** across 5 platforms:
 
 | Platform | Architecture | Rust Target | Notes |
 |----------|-------------|-------------|-------|
-| **Windows** | x86_64 | `x86_64-pc-windows-gnu` | Standard Windows PCs |
+| **Windows** | x86_64 | `x86_64-pc-windows-gnullvm` | Standard Windows PCs |
 | **Windows** | ARM64 | `aarch64-pc-windows-gnullvm` | Windows on ARM (Surface Pro X, etc.) |
 | **macOS** | x86_64 | `x86_64-apple-darwin` | Intel Macs |
 | **macOS** | ARM64 | `aarch64-apple-darwin` | Apple Silicon (M1/M2/M3) |
 | **Linux** | x86_64 | `x86_64-unknown-linux-gnu` | Standard Linux PCs |
-| **Linux** | x86 (32-bit) | `i686-unknown-linux-gnu` | Legacy 32-bit Linux |
 | **Linux** | ARM64 | `aarch64-unknown-linux-gnu` | Raspberry Pi 4, Linux ARM servers |
 | **Android** | ARM64 | `aarch64-linux-android` | Modern Android phones/tablets |
 | **Android** | ARM32 | `armv7-linux-androideabi` | Older Android devices |
 | **Android** | x86_64 | `x86_64-linux-android` | Android emulators, Chromebooks |
 | **Android** | x86 (32-bit) | `i686-linux-android` | Older Android emulators |
+| **Web** | WASM32 | `wasm32-unknown-unknown` | Browser-based games |
 
 All targets are officially supported by Godot 4 export templates.
 
 ### Not Currently Supported
 
 - **iOS**: Requires Xcode on macOS (cannot cross-compile from Linux)
-- **Web/WASM**: Experimental in gdext, requires Rust code changes (`#[cfg]` attributes for WASM compatibility)
+- **Android on arm64 Linux hosts**: Google doesn't ship NDK toolchains for arm64 Linux (see [Bugs and Limitations](#android-ndk-and-arm64-linux-hosts))
 
 Quick Start
 -----------
@@ -56,10 +56,8 @@ docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler \
 ### Building for Windows (x86_64)
 
 ```sh
-docker run -v $(pwd):/build \
-    -e C_INCLUDE_PATH=/usr/x86_64-w64-mingw32/include \
-    ufoot/godot-rust-cross-compiler \
-    cargo build --release --target x86_64-pc-windows-gnu
+docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler \
+    cargo build --release --target x86_64-pc-windows-gnullvm
 ```
 
 ### Building for macOS (Apple Silicon)
@@ -80,13 +78,13 @@ The image is based on **Ubuntu Noble (24.04)** and includes:
 ### Core Tools
 - Rust stable with all 11 target toolchains
 - GCC and Clang for native compilation
-- MinGW-w64 for Windows x86_64 cross-compilation
-- [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) for Windows ARM64 cross-compilation
+- [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) for Windows cross-compilation (x86_64 and ARM64)
 - `gcc-aarch64-linux-gnu` for Linux ARM64 cross-compilation
+- [binaryen](https://github.com/WebAssembly/binaryen) (`wasm-opt`) for WASM optimization
 
 ### Android SDK/NDK
 - Android SDK with platform-tools and build-tools 34.0.0
-- **Android NDK 23.2.8568313** (recommended by Godot 4)
+- **Android NDK r27c (27.2.12479018)** - latest LTS, recommended by Godot 4.5+
 - Android API level 21 minimum
 - [bundletool](https://github.com/google/bundletool) for AAB (Android App Bundle) support
 - Pre-configured debug keystore for development builds
@@ -95,10 +93,14 @@ The image is based on **Ubuntu Noble (24.04)** and includes:
 - [osxcross](https://github.com/tpoechtrager/osxcross) cross-compiler
 - **macOS SDK 14.5** (supports both x86_64 and ARM64)
 - Minimum deployment target: macOS 11.0
+- `genisoimage` and `dmg` for creating DMG disk images
+
+### Windows Packaging
+- [NSIS](https://nsis.sourceforge.io/) for creating Windows installers (.exe)
 
 ### Godot 4
-- **Godot 4.3** (headless mode for CI)
-- Export templates for all platforms
+- **Godot 4.5.1** (headless mode for CI)
+- Export templates for all platforms (including Web/WASM)
 - Pre-configured editor settings for Android export
 
 ### Image Size
@@ -146,9 +148,10 @@ reloadable = true
 
 [libraries]
 macos.debug.arm64 = "res://gdnative/macosx/aarch64-apple-darwin/libcctoy.dylib"
-windows.debug.x86_64 = "res://gdnative/windows/x86_64-pc-windows-gnu/cctoy.dll"
+windows.debug.x86_64 = "res://gdnative/windows/x86_64-pc-windows-gnullvm/cctoy.dll"
 linux.debug.x86_64 = "res://gdnative/linux/x86_64-unknown-linux-gnu/libcctoy.so"
 android.debug.arm64 = "res://gdnative/android/aarch64-linux-android/libcctoy.so"
+web.debug.wasm32 = "res://gdnative/wasm/wasm32-unknown-unknown/cctoy.wasm"
 # ... (see file for complete list)
 ```
 
@@ -193,6 +196,7 @@ make grcc-lib-windows-arm64  # Windows ARM64 only
 make grcc-lib-android        # All Android architectures
 make grcc-lib-macosx         # macOS x64 + ARM64
 make grcc-lib-linux          # Linux x64 + x32 + ARM64
+make grcc-lib-wasm           # Web/WASM (with wasm-opt optimization)
 ```
 
 ### Docker Detection
@@ -224,13 +228,16 @@ The Docker image pre-configures `~/.cargo/config.toml` with linkers for all targ
 
 ```toml
 [target.aarch64-linux-android]
-linker = "/opt/android-build-tools/android-sdk/ndk/23.2.8568313/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang"
+linker = "/opt/android-build-tools/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang"
 
 [target.x86_64-apple-darwin]
 linker = "/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin23-clang"
 
 [target.aarch64-apple-darwin]
 linker = "/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23-clang"
+
+[target.x86_64-pc-windows-gnullvm]
+linker = "/opt/llvm-mingw/bin/x86_64-w64-mingw32-clang"
 
 [target.aarch64-pc-windows-gnullvm]
 linker = "/opt/llvm-mingw/bin/aarch64-w64-mingw32-clang"
@@ -246,11 +253,10 @@ Some targets require environment variable overrides:
 
 | Target | Required Variables |
 |--------|-------------------|
-| Windows x64 | `C_INCLUDE_PATH=/usr/x86_64-w64-mingw32/include` |
 | macOS x64 | `CC=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin23-clang`<br>`C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include` |
 | macOS ARM64 | `CC=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23-clang`<br>`C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include` |
 
-Android, Linux, and Windows ARM64 targets work without additional environment variables.
+Android, Linux, Windows, and WASM targets work without additional environment variables.
 
 CI/CD Integration
 -----------------
@@ -287,9 +293,12 @@ The `make export` target creates distribution-ready packages:
 | Platform | Output | Format |
 |----------|--------|--------|
 | Windows | `export/mygame-windows-v1.0.0.zip` | ZIP with .exe and .dll |
+| Windows | `export/mygame-windows-v1.0.0-installer.exe` | NSIS installer |
 | macOS | `export/mygame-macosx-v1.0.0.zip` | ZIP with .app bundle |
+| macOS | `export/mygame-macosx-v1.0.0.dmg` | DMG disk image |
 | Linux | `export/mygame-linux-v1.0.0.tar.gz` | Tarball with executable and .so |
 | Android | `export/mygame-android-v1.0.0.apk` | Unsigned APK |
+| Web | `export/mygame-web-v1.0.0.zip` | HTML5/WASM package |
 | Source | `export/mygame-1.0.0.tar.gz` | Source tarball |
 
 **Note**: Android APKs are signed with a debug key. For production releases, you'll need to sign with your own keystore.
@@ -307,7 +316,7 @@ Make sure you're setting both `CC` and `C_INCLUDE_PATH` environment variables. T
 
 ### Android NDK version mismatch
 
-The image uses NDK 23.2.8568313, which is the version recommended by Godot 4. Using a different NDK version may cause linker errors.
+The image uses NDK r27c (27.2.12479018), which is the latest LTS version recommended by Godot 4.5+. Using a significantly older NDK version may cause linker errors.
 
 ### "TargetConditionals.h not found"
 
@@ -345,9 +354,35 @@ Bugs and Limitations
 --------------------
 
 - No iOS support (requires Xcode)
-- No Web/WASM support (experimental in gdext)
+- Web/WASM support is experimental (requires `experimental-wasm-nothreads` feature in gdext)
 - Runs as root in container
 - Android APKs are debug-signed only
+- Windows installers and macOS DMGs are unsigned
+- **Android builds don't work on arm64 Linux hosts** (see below)
+
+### Android NDK and ARM64 Linux Hosts
+
+Google does not provide Android NDK toolchains for arm64 Linux hosts. The NDK only ships with:
+- `linux-x86_64` - for x86_64 Linux hosts
+- `darwin-x86_64` - for macOS (includes arm64/M1 support via fat binaries)
+
+This means **Android cross-compilation doesn't work when running the Docker image on arm64 Linux** (e.g., Apple Silicon with arm64 Docker).
+
+**Workarounds:**
+
+1. **Use an x86_64 Docker image** (recommended for CI):
+   ```bash
+   docker build --platform linux/amd64 -t ufoot/godot-rust-cross-compiler:amd64 docker/
+   docker run --platform linux/amd64 ... ufoot/godot-rust-cross-compiler:amd64 ...
+   ```
+
+2. **Build on an x86_64 machine**
+
+3. **Use native macOS** - The NDK includes arm64 macOS support, so Android builds work natively on Apple Silicon without Docker.
+
+The Makefile will detect arm64 hosts and fail early with a helpful error message when attempting Android builds.
+
+See: [GitHub Issue #1440](https://github.com/android/ndk/issues/1440)
 
 Resources
 ---------
