@@ -59,3 +59,8 @@ junit-results.xml
 /godot/android
 .vs
 logs
+
+# Temporary build scripts (created by grcc.mk, should be auto-deleted)
+godot/buildx2.sh
+godot/installer-build.sh
+godot/dmg-build.sh
