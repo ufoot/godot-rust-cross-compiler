@@ -15,7 +15,7 @@ LABEL package="godot-rust-cross-compiler" version="$GRCC_VERSION" description="A
 RUN apt-get update
 RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata
 RUN apt-get install -yq \
-    sudo curl wget git zip unzip \
+    sudo curl wget git zip unzip xz-utils \
     file g++ cmake pkg-config \
     libasound2-dev bison flex \
     openjdk-17-jdk \
