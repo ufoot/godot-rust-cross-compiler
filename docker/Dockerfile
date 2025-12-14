@@ -27,6 +27,7 @@ RUN apt-get install -yq \
     ca-certificates default-jre-headless \
     xvfb \
     vim \
+    gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
     && apt-get clean
 
 # Install Android command line tools
@@ -79,6 +80,7 @@ ENV PATH=/root/.cargo/bin:$PATH
 
 RUN rustup target add \
     x86_64-pc-windows-gnu \
+    aarch64-pc-windows-gnullvm \
     aarch64-linux-android \
     armv7-linux-androideabi \
     x86_64-linux-android \
@@ -86,7 +88,8 @@ RUN rustup target add \
     x86_64-apple-darwin \
     aarch64-apple-darwin \
     x86_64-unknown-linux-gnu \
-    i686-unknown-linux-gnu
+    i686-unknown-linux-gnu \
+    aarch64-unknown-linux-gnu
 
 RUN mkdir -p /root/.cargo/git
 RUN mkdir -p /root/.cargo/registry
@@ -111,6 +114,26 @@ RUN echo "[target.x86_64-linux-android]" >> /root/.cargo/config.toml && \
 
 RUN echo "[target.i686-linux-android]" >> /root/.cargo/config.toml && \
     echo "linker = \"$NDK_TOOLCHAIN/i686-linux-android${ANDROID_API_LEVEL}-clang\"" >> /root/.cargo/config.toml && \
+    echo "" >> /root/.cargo/config.toml
+
+# Configure Linux ARM64 cross-compiling
+RUN echo "[target.aarch64-unknown-linux-gnu]" >> /root/.cargo/config.toml && \
+    echo "linker = \"aarch64-linux-gnu-gcc\"" >> /root/.cargo/config.toml && \
+    echo "" >> /root/.cargo/config.toml
+
+# Install llvm-mingw for Windows ARM64 cross-compiling
+ARG LLVM_MINGW_VERSION=20241119
+ARG LLVM_MINGW_URL=https://github.com/mstorsjo/llvm-mingw/releases/download/$LLVM_MINGW_VERSION/llvm-mingw-$LLVM_MINGW_VERSION-ucrt-ubuntu-20.04-x86_64.tar.xz
+RUN wget -nc -nv $LLVM_MINGW_URL -O /tmp/llvm-mingw.tar.xz && \
+    tar -xf /tmp/llvm-mingw.tar.xz -C /opt && \
+    rm /tmp/llvm-mingw.tar.xz && \
+    mv /opt/llvm-mingw-$LLVM_MINGW_VERSION-ucrt-ubuntu-20.04-x86_64 /opt/llvm-mingw
+
+ENV PATH=/opt/llvm-mingw/bin:$PATH
+
+# Configure Windows ARM64 cross-compiling
+RUN echo "[target.aarch64-pc-windows-gnullvm]" >> /root/.cargo/config.toml && \
+    echo "linker = \"/opt/llvm-mingw/bin/aarch64-w64-mingw32-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml
 
 # Install OSX cross build env

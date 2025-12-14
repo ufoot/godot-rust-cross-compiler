@@ -23,6 +23,7 @@
 .PHONY: grcc-lib-all
 .PHONY: grcc-lib-windows
 .PHONY: grcc-lib-windows-x64
+.PHONY: grcc-lib-windows-arm64
 .PHONY: grcc-lib-android
 .PHONY: grcc-lib-android-arm64
 .PHONY: grcc-lib-android-arm32
@@ -34,6 +35,7 @@
 .PHONY: grcc-lib-linux
 .PHONY: grcc-lib-linux-x64
 .PHONY: grcc-lib-linux-x32
+.PHONY: grcc-lib-linux-arm64
 .PHONY: grcc-native
 .PHONY: grcc-cross
 .PHONY: grcc-copy-local
@@ -61,6 +63,7 @@ grcc-export: grcc-test grcc-pkg-all
 grcc-lib-all: grcc-lib-windows grcc-lib-android grcc-lib-macosx grcc-lib-linux
 
 GRCC_WINDOWS_X64_TARGET=x86_64-pc-windows-gnu
+GRCC_WINDOWS_ARM64_TARGET=aarch64-pc-windows-gnullvm
 GRCC_ANDROID_ARM64_TARGET=aarch64-linux-android
 GRCC_ANDROID_ARM32_TARGET=armv7-linux-androideabi
 GRCC_ANDROID_X64_TARGET=x86_64-linux-android
@@ -69,6 +72,7 @@ GRCC_MACOSX_X64_TARGET=x86_64-apple-darwin
 GRCC_MACOSX_ARM64_TARGET=aarch64-apple-darwin
 GRCC_LINUX_X64_TARGET=x86_64-unknown-linux-gnu
 GRCC_LINUX_X32_TARGET=i686-unknown-linux-gnu
+GRCC_LINUX_ARM64_TARGET=aarch64-unknown-linux-gnu
 
 # This must be defined
 ifeq (,$(GRCC_GAME_PKG_NAME))
@@ -106,6 +110,8 @@ GRCC_NATIVE_DEBUG_LINUX_SRC=./rust/target/debug/lib$(GRCC_GODOT_RUST_LIB_NAME).s
 GRCC_GODOT_GDNATIVE_DIR=./godot/gdnative
 GRCC_WINDOWS_X64_SRC=./rust/target/$(GRCC_WINDOWS_X64_TARGET)/release/$(GRCC_GODOT_RUST_LIB_NAME).dll
 GRCC_WINDOWS_X64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/windows/$(GRCC_WINDOWS_X64_TARGET)/
+GRCC_WINDOWS_ARM64_SRC=./rust/target/$(GRCC_WINDOWS_ARM64_TARGET)/release/$(GRCC_GODOT_RUST_LIB_NAME).dll
+GRCC_WINDOWS_ARM64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/windows/$(GRCC_WINDOWS_ARM64_TARGET)/
 GRCC_ANDROID_ARM64_SRC=./rust/target/$(GRCC_ANDROID_ARM64_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
 GRCC_ANDROID_ARM64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/android/$(GRCC_ANDROID_ARM64_TARGET)/
 GRCC_ANDROID_ARM32_SRC=./rust/target/$(GRCC_ANDROID_ARM32_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
@@ -122,6 +128,8 @@ GRCC_LINUX_X64_SRC=./rust/target/$(GRCC_LINUX_X64_TARGET)/release/lib$(GRCC_GODO
 GRCC_LINUX_X64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/linux/$(GRCC_LINUX_X64_TARGET)/
 GRCC_LINUX_X32_SRC=./rust/target/$(GRCC_LINUX_X32_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
 GRCC_LINUX_X32_DST=$(GRCC_GODOT_GDNATIVE_DIR)/linux/$(GRCC_LINUX_X32_TARGET)/
+GRCC_LINUX_ARM64_SRC=./rust/target/$(GRCC_LINUX_ARM64_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
+GRCC_LINUX_ARM64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/linux/$(GRCC_LINUX_ARM64_TARGET)/
 
 GRCC_CROSS_COMPILER_CACHE_DIR=target/cross-compiler-cache
 
@@ -160,13 +168,20 @@ grcc-clean-prepare:
 
 grcc-lib-all: grcc-lib-windows grcc-lib-android grcc-lib-macosx grcc-lib-linux
 
-grcc-lib-windows: grcc-lib-windows-x64
+grcc-lib-windows: grcc-lib-windows-x64 grcc-lib-windows-arm64
 
 grcc-lib-windows-x64:
 ifeq (yes,$(GRCC_USE_DOCKER))
 	cd rust && $(GRCC_INVOKE_DOCKER_RUST) -e C_INCLUDE_PATH=$(GRCC_WINDOWS_MINGW_HEADERS) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_WINDOWS_X64_TARGET)
 else
 	export C_INCLUDE_PATH=$(GRCC_WINDOWS_MINGW_HEADERS) && cd rust && cargo build --release --target $(GRCC_WINDOWS_X64_TARGET)
+endif
+
+grcc-lib-windows-arm64:
+ifeq (yes,$(GRCC_USE_DOCKER))
+	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_WINDOWS_ARM64_TARGET)
+else
+	cd rust && cargo build --release --target $(GRCC_WINDOWS_ARM64_TARGET)
 endif
 
 grcc-lib-android: grcc-lib-android-arm64 grcc-lib-android-arm32 grcc-lib-android-x64 grcc-lib-android-x32
@@ -215,7 +230,7 @@ else
 	export CC=$(GRCC_MACOSX_SDK_CC_ARM64) C_INCLUDE_PATH=$(GRCC_MACOSX_SDK_HEADERS) && cd rust && cargo build --release --target $(GRCC_MACOSX_ARM64_TARGET)
 endif
 
-grcc-lib-linux: grcc-lib-linux-x64 grcc-lib-linux-x32
+grcc-lib-linux: grcc-lib-linux-x64 grcc-lib-linux-x32 grcc-lib-linux-arm64
 
 grcc-lib-linux-x64:
 ifeq (yes,$(GRCC_USE_DOCKER))
@@ -231,6 +246,13 @@ else
 	cd rust && cargo build --release --target $(GRCC_LINUX_X32_TARGET)
 endif
 
+grcc-lib-linux-arm64:
+ifeq (yes,$(GRCC_USE_DOCKER))
+	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_LINUX_ARM64_TARGET)
+else
+	cd rust && cargo build --release --target $(GRCC_LINUX_ARM64_TARGET)
+endif
+
 grcc-copy-local:
 	if (uname -a | grep -i windows) ; then install -d $(GRCC_WINDOWS_X64_DST) && cp $(GRCC_NATIVE_DEBUG_WINDOWS_SRC) $(GRCC_WINDOWS_X64_DST) ; fi
 	if (uname -a | grep -i darwin) ; then \
@@ -244,6 +266,7 @@ grcc-copy-local:
 
 grcc-copy-if-exists:
 	if test -f $(GRCC_WINDOWS_X64_SRC) ; then install -d $(GRCC_WINDOWS_X64_DST) && cp $(GRCC_WINDOWS_X64_SRC) $(GRCC_WINDOWS_X64_DST) ; fi
+	if test -f $(GRCC_WINDOWS_ARM64_SRC) ; then install -d $(GRCC_WINDOWS_ARM64_DST) && cp $(GRCC_WINDOWS_ARM64_SRC) $(GRCC_WINDOWS_ARM64_DST) ; fi
 	if test -f $(GRCC_ANDROID_ARM64_SRC) ; then install -d $(GRCC_ANDROID_ARM64_DST) && cp $(GRCC_ANDROID_ARM64_SRC) $(GRCC_ANDROID_ARM64_DST) ; fi
 	if test -f $(GRCC_ANDROID_ARM32_SRC) ; then install -d $(GRCC_ANDROID_ARM32_DST) && cp $(GRCC_ANDROID_ARM32_SRC) $(GRCC_ANDROID_ARM32_DST) ; fi
 	if test -f $(GRCC_ANDROID_X64_SRC) ; then install -d $(GRCC_ANDROID_X64_DST) && cp $(GRCC_ANDROID_X64_SRC) $(GRCC_ANDROID_X64_DST) ; fi
@@ -252,6 +275,7 @@ grcc-copy-if-exists:
 	if test -f $(GRCC_MACOSX_ARM64_SRC) ; then install -d $(GRCC_MACOSX_ARM64_DST) && cp $(GRCC_MACOSX_ARM64_SRC) $(GRCC_MACOSX_ARM64_DST) ; fi
 	if test -f $(GRCC_LINUX_X64_SRC) ; then install -d $(GRCC_LINUX_X64_DST) && cp $(GRCC_LINUX_X64_SRC) $(GRCC_LINUX_X64_DST) ; fi
 	if test -f $(GRCC_LINUX_X32_SRC) ; then install -d $(GRCC_LINUX_X32_DST) && cp $(GRCC_LINUX_X32_SRC) $(GRCC_LINUX_X32_DST) ; fi
+	if test -f $(GRCC_LINUX_ARM64_SRC) ; then install -d $(GRCC_LINUX_ARM64_DST) && cp $(GRCC_LINUX_ARM64_SRC) $(GRCC_LINUX_ARM64_DST) ; fi
 
 grcc-copy-all: grcc-copy-windows grcc-copy-android grcc-copy-macosx grcc-copy-linux
 
