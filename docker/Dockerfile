@@ -28,6 +28,7 @@ RUN apt-get install -yq \
     gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
     nsis \
     genisoimage \
+    binaryen \
     && apt-get clean
 
 # Install Android command line tools and NDK
@@ -95,7 +96,8 @@ RUN rustup target add \
     aarch64-apple-darwin \
     x86_64-unknown-linux-gnu \
     i686-unknown-linux-gnu \
-    aarch64-unknown-linux-gnu
+    aarch64-unknown-linux-gnu \
+    wasm32-unknown-unknown
 
 RUN mkdir -p /root/.cargo/git /root/.cargo/registry
 
