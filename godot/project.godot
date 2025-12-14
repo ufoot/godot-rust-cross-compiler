@@ -6,24 +6,16 @@
 ;   [section] ; section goes between []
 ;   param=value ; assign values to parameters
 
-config_version=4
-
-_global_script_classes=[  ]
-_global_script_class_icons={
-
-}
+config_version=5
 
 [application]
 
 config/name="Godot Rust Cross Compiler Toy"
 run/main_scene="res://scenes/main_scene.tscn"
+config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.png"
 
 [display]
 
-window/size/width=1280
-window/size/height=720
-
-[rendering]
-
-environment/default_environment="res://default_env.tres"
+window/size/viewport_width=1280
+window/size/viewport_height=720

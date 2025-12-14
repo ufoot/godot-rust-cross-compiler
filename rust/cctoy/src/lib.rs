@@ -1,35 +1,34 @@
-use gdnative::prelude::*;
-use withgdnative;
+use godot::prelude::*;
+use godot::classes::{Label, ILabel};
 
-#[derive(NativeClass)]
-#[inherit(Label)]
-pub struct MsgLabel;
+struct CcToyExtension;
 
-#[methods]
-impl MsgLabel {
-    fn new(_owner: &Label) -> Self {
-        MsgLabel
+#[gdextension]
+unsafe impl ExtensionLibrary for CcToyExtension {}
+
+#[derive(GodotClass)]
+#[class(base=Label)]
+pub struct MsgLabel {
+    base: Base<Label>,
+}
+
+#[godot_api]
+impl ILabel for MsgLabel {
+    fn init(base: Base<Label>) -> Self {
+        godot_print!("MsgLabel initialized");
+        MsgLabel { base }
     }
 
-    #[export]
-    fn _ready(&self, owner: &Label) {
+    fn ready(&mut self) {
         godot_print!("msg label is ready");
-        owner.set_text(withgdnative::get_msg());
+        self.base_mut().set_text(&withgodot::get_msg());
     }
 }
-
-fn init(handle: InitHandle) {
-    handle.add_class::<MsgLabel>();
-}
-
-godot_init!(init);
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
-    fn check_withgdnative_get_msg() {
-        assert_eq!("msg from Rust: 0.5", withgdnative::get_msg());
+    fn check_withgodot_get_msg() {
+        assert_eq!("msg from Rust: 0.5", withgodot::get_msg());
     }
 }

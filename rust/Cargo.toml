@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "purelib",
-    "withgdnative",
+    "withgodot",
     "cctoy",
 ]
+resolver = "2"
