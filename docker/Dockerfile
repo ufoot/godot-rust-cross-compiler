@@ -86,18 +86,19 @@ RUN wget -nc -nv https://github.com/google/bundletool/releases/download/$BUNDLET
 RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y --profile minimal
 ENV PATH=/root/.cargo/bin:$PATH
 
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
 RUN rustup target add \
     x86_64-pc-windows-gnullvm \
     aarch64-pc-windows-gnullvm \
     aarch64-linux-android \
-    armv7-linux-androideabi \
     x86_64-linux-android \
-    i686-linux-android \
     x86_64-apple-darwin \
     aarch64-apple-darwin \
     x86_64-unknown-linux-gnu \
-    aarch64-unknown-linux-gnu \
-    wasm32-unknown-unknown
+    aarch64-unknown-linux-gnu
+    # armv7-linux-androideabi \
+    # i686-linux-android \
+    # wasm32-unknown-unknown
 
 RUN mkdir -p /root/.cargo/git /root/.cargo/registry
 
@@ -107,19 +108,14 @@ RUN mkdir -p /root/.cargo/git /root/.cargo/registry
 
 ARG ANDROID_API_LEVEL=21
 
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
 RUN NDK_HOST=$(if [ "$TARGETARCH" = "arm64" ]; then echo "linux-aarch64"; else echo "linux-x86_64"; fi) && \
     NDK_TOOLCHAIN="$ANDROID_HOME/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/$NDK_HOST/bin" && \
     echo "[target.aarch64-linux-android]" >> /root/.cargo/config.toml && \
     echo "linker = \"$NDK_TOOLCHAIN/aarch64-linux-android${ANDROID_API_LEVEL}-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml && \
-    echo "[target.armv7-linux-androideabi]" >> /root/.cargo/config.toml && \
-    echo "linker = \"$NDK_TOOLCHAIN/armv7a-linux-androideabi${ANDROID_API_LEVEL}-clang\"" >> /root/.cargo/config.toml && \
-    echo "" >> /root/.cargo/config.toml && \
     echo "[target.x86_64-linux-android]" >> /root/.cargo/config.toml && \
     echo "linker = \"$NDK_TOOLCHAIN/x86_64-linux-android${ANDROID_API_LEVEL}-clang\"" >> /root/.cargo/config.toml && \
-    echo "" >> /root/.cargo/config.toml && \
-    echo "[target.i686-linux-android]" >> /root/.cargo/config.toml && \
-    echo "linker = \"$NDK_TOOLCHAIN/i686-linux-android${ANDROID_API_LEVEL}-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml && \
     # Linux cross-compilation linkers (architecture-dependent) \
     if [ "$TARGETARCH" = "arm64" ]; then \

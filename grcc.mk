@@ -26,16 +26,18 @@
 .PHONY: grcc-lib-windows-arm64
 .PHONY: grcc-lib-android
 .PHONY: grcc-lib-android-arm64
-.PHONY: grcc-lib-android-arm32
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# .PHONY: grcc-lib-android-arm32
 .PHONY: grcc-lib-android-x64
-.PHONY: grcc-lib-android-x32
+# .PHONY: grcc-lib-android-x32
 .PHONY: grcc-lib-macosx
 .PHONY: grcc-lib-macosx-x64
 .PHONY: grcc-lib-macosx-arm64
 .PHONY: grcc-lib-linux
 .PHONY: grcc-lib-linux-x64
 .PHONY: grcc-lib-linux-arm64
-.PHONY: grcc-lib-wasm
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# .PHONY: grcc-lib-wasm
 .PHONY: grcc-native
 .PHONY: grcc-cross
 .PHONY: grcc-copy-local
@@ -49,7 +51,8 @@
 .PHONY: grcc-copy-linux
 .PHONY: grcc-copy-linux-x64
 .PHONY: grcc-copy-linux-arm64
-.PHONY: grcc-copy-wasm
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# .PHONY: grcc-copy-wasm
 .PHONY: grcc-pkg-all
 .PHONY: grcc-pkg-windows
 .PHONY: grcc-pkg-windows-x64
@@ -62,7 +65,8 @@
 .PHONY: grcc-pkg-linux
 .PHONY: grcc-pkg-linux-x64
 .PHONY: grcc-pkg-linux-arm64
-.PHONY: grcc-pkg-wasm
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# .PHONY: grcc-pkg-wasm
 .PHONY: grcc-pkg-source
 .PHONY: grcc-dmg-macosx
 
@@ -74,19 +78,23 @@ grcc-cross: grcc-test grcc-lib-all grcc-copy-if-exists
 
 grcc-export: grcc-test grcc-pkg-all grcc-installer-windows grcc-dmg-macosx
 
-grcc-lib-all: grcc-lib-windows grcc-lib-android grcc-lib-macosx grcc-lib-linux grcc-lib-wasm
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# grcc-lib-all: grcc-lib-windows grcc-lib-android grcc-lib-macosx grcc-lib-linux grcc-lib-wasm
+grcc-lib-all: grcc-lib-windows grcc-lib-android grcc-lib-macosx grcc-lib-linux
 
 GRCC_WINDOWS_X64_TARGET=x86_64-pc-windows-gnullvm
 GRCC_WINDOWS_ARM64_TARGET=aarch64-pc-windows-gnullvm
 GRCC_ANDROID_ARM64_TARGET=aarch64-linux-android
-GRCC_ANDROID_ARM32_TARGET=armv7-linux-androideabi
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# GRCC_ANDROID_ARM32_TARGET=armv7-linux-androideabi
 GRCC_ANDROID_X64_TARGET=x86_64-linux-android
-GRCC_ANDROID_X32_TARGET=i686-linux-android
+# GRCC_ANDROID_X32_TARGET=i686-linux-android
 GRCC_MACOSX_X64_TARGET=x86_64-apple-darwin
 GRCC_MACOSX_ARM64_TARGET=aarch64-apple-darwin
 GRCC_LINUX_X64_TARGET=x86_64-unknown-linux-gnu
 GRCC_LINUX_ARM64_TARGET=aarch64-unknown-linux-gnu
-GRCC_WASM_TARGET=wasm32-unknown-unknown
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# GRCC_WASM_TARGET=wasm32-unknown-unknown
 
 # This must be defined
 ifeq (,$(GRCC_GAME_PKG_NAME))
@@ -160,12 +168,13 @@ GRCC_WINDOWS_ARM64_SRC=./rust/target/$(GRCC_WINDOWS_ARM64_TARGET)/release/$(GRCC
 GRCC_WINDOWS_ARM64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/windows/$(GRCC_WINDOWS_ARM64_TARGET)/
 GRCC_ANDROID_ARM64_SRC=./rust/target/$(GRCC_ANDROID_ARM64_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
 GRCC_ANDROID_ARM64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/android/$(GRCC_ANDROID_ARM64_TARGET)/
-GRCC_ANDROID_ARM32_SRC=./rust/target/$(GRCC_ANDROID_ARM32_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
-GRCC_ANDROID_ARM32_DST=$(GRCC_GODOT_GDNATIVE_DIR)/android/$(GRCC_ANDROID_ARM32_TARGET)/
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# GRCC_ANDROID_ARM32_SRC=./rust/target/$(GRCC_ANDROID_ARM32_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
+# GRCC_ANDROID_ARM32_DST=$(GRCC_GODOT_GDNATIVE_DIR)/android/$(GRCC_ANDROID_ARM32_TARGET)/
 GRCC_ANDROID_X64_SRC=./rust/target/$(GRCC_ANDROID_X64_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
 GRCC_ANDROID_X64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/android/$(GRCC_ANDROID_X64_TARGET)/
-GRCC_ANDROID_X32_SRC=./rust/target/$(GRCC_ANDROID_X32_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
-GRCC_ANDROID_X32_DST=$(GRCC_GODOT_GDNATIVE_DIR)/android/$(GRCC_ANDROID_X32_TARGET)/
+# GRCC_ANDROID_X32_SRC=./rust/target/$(GRCC_ANDROID_X32_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
+# GRCC_ANDROID_X32_DST=$(GRCC_GODOT_GDNATIVE_DIR)/android/$(GRCC_ANDROID_X32_TARGET)/
 GRCC_MACOSX_X64_SRC=./rust/target/$(GRCC_MACOSX_X64_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).dylib
 GRCC_MACOSX_X64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/macosx/$(GRCC_MACOSX_X64_TARGET)/
 GRCC_MACOSX_ARM64_SRC=./rust/target/$(GRCC_MACOSX_ARM64_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).dylib
@@ -174,8 +183,9 @@ GRCC_LINUX_X64_SRC=./rust/target/$(GRCC_LINUX_X64_TARGET)/release/lib$(GRCC_GODO
 GRCC_LINUX_X64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/linux/$(GRCC_LINUX_X64_TARGET)/
 GRCC_LINUX_ARM64_SRC=./rust/target/$(GRCC_LINUX_ARM64_TARGET)/release/lib$(GRCC_GODOT_RUST_LIB_NAME).so
 GRCC_LINUX_ARM64_DST=$(GRCC_GODOT_GDNATIVE_DIR)/linux/$(GRCC_LINUX_ARM64_TARGET)/
-GRCC_WASM_SRC=./rust/target/$(GRCC_WASM_TARGET)/release/$(GRCC_GODOT_RUST_LIB_NAME).wasm
-GRCC_WASM_DST=$(GRCC_GODOT_GDNATIVE_DIR)/wasm/$(GRCC_WASM_TARGET)/
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# GRCC_WASM_SRC=./rust/target/$(GRCC_WASM_TARGET)/release/$(GRCC_GODOT_RUST_LIB_NAME).wasm
+# GRCC_WASM_DST=$(GRCC_GODOT_GDNATIVE_DIR)/wasm/$(GRCC_WASM_TARGET)/
 
 GRCC_CROSS_COMPILER_CACHE_DIR=target/cross-compiler-cache
 
@@ -191,7 +201,8 @@ GRCC_EXPORT_ANDROID_PKG=$(GRCC_GAME_PKG_NAME)-android-v$(GRCC_GAME_PKG_VERSION)
 GRCC_EXPORT_MACOSX_PKG=$(GRCC_GAME_PKG_NAME)-macosx-v$(GRCC_GAME_PKG_VERSION)
 GRCC_EXPORT_LINUX_X64_PKG=$(GRCC_GAME_PKG_NAME)-linux-x64-v$(GRCC_GAME_PKG_VERSION)
 GRCC_EXPORT_LINUX_ARM64_PKG=$(GRCC_GAME_PKG_NAME)-linux-arm64-v$(GRCC_GAME_PKG_VERSION)
-GRCC_EXPORT_WASM_PKG=$(GRCC_GAME_PKG_NAME)-web-v$(GRCC_GAME_PKG_VERSION)
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# GRCC_EXPORT_WASM_PKG=$(GRCC_GAME_PKG_NAME)-web-v$(GRCC_GAME_PKG_VERSION)
 
 # Windows installer settings
 GRCC_INSTALLER_TEMPLATE=/opt/grcc/installer.nsi.template
@@ -243,7 +254,9 @@ else
 	cd rust && cargo build --release --target $(GRCC_WINDOWS_ARM64_TARGET)
 endif
 
-grcc-lib-android: grcc-check-android-host grcc-lib-android-arm64 grcc-lib-android-arm32 grcc-lib-android-x64 grcc-lib-android-x32
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# grcc-lib-android: grcc-check-android-host grcc-lib-android-arm64 grcc-lib-android-arm32 grcc-lib-android-x64 grcc-lib-android-x32
+grcc-lib-android: grcc-check-android-host grcc-lib-android-arm64 grcc-lib-android-x64
 
 grcc-lib-android-arm64: grcc-check-android-host
 ifeq (yes,$(GRCC_USE_DOCKER))
@@ -252,12 +265,13 @@ else
 	cd rust && cargo build --release --target $(GRCC_ANDROID_ARM64_TARGET)
 endif
 
-grcc-lib-android-arm32: grcc-check-android-host
-ifeq (yes,$(GRCC_USE_DOCKER))
-	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_ANDROID_ARM32_TARGET)
-else
-	cd rust && cargo build --release --target $(GRCC_ANDROID_ARM32_TARGET)
-endif
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# grcc-lib-android-arm32: grcc-check-android-host
+# ifeq (yes,$(GRCC_USE_DOCKER))
+# 	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_ANDROID_ARM32_TARGET)
+# else
+# 	cd rust && cargo build --release --target $(GRCC_ANDROID_ARM32_TARGET)
+# endif
 
 grcc-lib-android-x64: grcc-check-android-host
 ifeq (yes,$(GRCC_USE_DOCKER))
@@ -266,12 +280,13 @@ else
 	cd rust && cargo build --release --target $(GRCC_ANDROID_X64_TARGET)
 endif
 
-grcc-lib-android-x32: grcc-check-android-host
-ifeq (yes,$(GRCC_USE_DOCKER))
-	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_ANDROID_X32_TARGET)
-else
-	cd rust && cargo build --release --target $(GRCC_ANDROID_X32_TARGET)
-endif
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# grcc-lib-android-x32: grcc-check-android-host
+# ifeq (yes,$(GRCC_USE_DOCKER))
+# 	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_ANDROID_X32_TARGET)
+# else
+# 	cd rust && cargo build --release --target $(GRCC_ANDROID_X32_TARGET)
+# endif
 
 grcc-lib-macosx: grcc-lib-macosx-x64 grcc-lib-macosx-arm64
 
@@ -305,18 +320,19 @@ else
 	cd rust && cargo build --release --target $(GRCC_LINUX_ARM64_TARGET)
 endif
 
-grcc-lib-wasm:
-ifeq (yes,$(GRCC_USE_DOCKER))
-	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_WASM_TARGET)
-else
-	cd rust && cargo build --release --target $(GRCC_WASM_TARGET)
-endif
-	# Optimize WASM with wasm-opt
-ifeq (yes,$(GRCC_USE_DOCKER))
-	$(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler wasm-opt -Os $(GRCC_WASM_SRC) -o $(GRCC_WASM_SRC)
-else
-	wasm-opt -Os $(GRCC_WASM_SRC) -o $(GRCC_WASM_SRC)
-endif
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# grcc-lib-wasm:
+# ifeq (yes,$(GRCC_USE_DOCKER))
+# 	cd rust && $(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler cargo build --release --target $(GRCC_WASM_TARGET)
+# else
+# 	cd rust && cargo build --release --target $(GRCC_WASM_TARGET)
+# endif
+# 	# Optimize WASM with wasm-opt
+# ifeq (yes,$(GRCC_USE_DOCKER))
+# 	$(GRCC_INVOKE_DOCKER_RUST) ufoot/godot-rust-cross-compiler wasm-opt -Os $(GRCC_WASM_SRC) -o $(GRCC_WASM_SRC)
+# else
+# 	wasm-opt -Os $(GRCC_WASM_SRC) -o $(GRCC_WASM_SRC)
+# endif
 
 grcc-copy-local:
 	if (uname -a | grep -i windows) ; then install -d $(GRCC_WINDOWS_X64_DST) && cp $(GRCC_NATIVE_DEBUG_WINDOWS_SRC) $(GRCC_WINDOWS_X64_DST) ; fi
@@ -333,16 +349,20 @@ grcc-copy-if-exists:
 	if test -f $(GRCC_WINDOWS_X64_SRC) ; then install -d $(GRCC_WINDOWS_X64_DST) && cp $(GRCC_WINDOWS_X64_SRC) $(GRCC_WINDOWS_X64_DST) ; fi
 	if test -f $(GRCC_WINDOWS_ARM64_SRC) ; then install -d $(GRCC_WINDOWS_ARM64_DST) && cp $(GRCC_WINDOWS_ARM64_SRC) $(GRCC_WINDOWS_ARM64_DST) ; fi
 	if test -f $(GRCC_ANDROID_ARM64_SRC) ; then install -d $(GRCC_ANDROID_ARM64_DST) && cp $(GRCC_ANDROID_ARM64_SRC) $(GRCC_ANDROID_ARM64_DST) ; fi
-	if test -f $(GRCC_ANDROID_ARM32_SRC) ; then install -d $(GRCC_ANDROID_ARM32_DST) && cp $(GRCC_ANDROID_ARM32_SRC) $(GRCC_ANDROID_ARM32_DST) ; fi
+	# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+	# if test -f $(GRCC_ANDROID_ARM32_SRC) ; then install -d $(GRCC_ANDROID_ARM32_DST) && cp $(GRCC_ANDROID_ARM32_SRC) $(GRCC_ANDROID_ARM32_DST) ; fi
 	if test -f $(GRCC_ANDROID_X64_SRC) ; then install -d $(GRCC_ANDROID_X64_DST) && cp $(GRCC_ANDROID_X64_SRC) $(GRCC_ANDROID_X64_DST) ; fi
-	if test -f $(GRCC_ANDROID_X32_SRC) ; then install -d $(GRCC_ANDROID_X32_DST) && cp $(GRCC_ANDROID_X32_SRC) $(GRCC_ANDROID_X32_DST) ; fi
+	# if test -f $(GRCC_ANDROID_X32_SRC) ; then install -d $(GRCC_ANDROID_X32_DST) && cp $(GRCC_ANDROID_X32_SRC) $(GRCC_ANDROID_X32_DST) ; fi
 	if test -f $(GRCC_MACOSX_X64_SRC) ; then install -d $(GRCC_MACOSX_X64_DST) && cp $(GRCC_MACOSX_X64_SRC) $(GRCC_MACOSX_X64_DST) ; fi
 	if test -f $(GRCC_MACOSX_ARM64_SRC) ; then install -d $(GRCC_MACOSX_ARM64_DST) && cp $(GRCC_MACOSX_ARM64_SRC) $(GRCC_MACOSX_ARM64_DST) ; fi
 	if test -f $(GRCC_LINUX_X64_SRC) ; then install -d $(GRCC_LINUX_X64_DST) && cp $(GRCC_LINUX_X64_SRC) $(GRCC_LINUX_X64_DST) ; fi
 	if test -f $(GRCC_LINUX_ARM64_SRC) ; then install -d $(GRCC_LINUX_ARM64_DST) && cp $(GRCC_LINUX_ARM64_SRC) $(GRCC_LINUX_ARM64_DST) ; fi
-	if test -f $(GRCC_WASM_SRC) ; then install -d $(GRCC_WASM_DST) && cp $(GRCC_WASM_SRC) $(GRCC_WASM_DST) ; fi
+	# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+	# if test -f $(GRCC_WASM_SRC) ; then install -d $(GRCC_WASM_DST) && cp $(GRCC_WASM_SRC) $(GRCC_WASM_DST) ; fi
 
-grcc-copy-all: grcc-copy-windows grcc-copy-android grcc-copy-macosx grcc-copy-linux grcc-copy-wasm
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# grcc-copy-all: grcc-copy-windows grcc-copy-android grcc-copy-macosx grcc-copy-linux grcc-copy-wasm
+grcc-copy-all: grcc-copy-windows grcc-copy-android grcc-copy-macosx grcc-copy-linux
 
 grcc-copy-windows: grcc-copy-windows-x64 grcc-copy-windows-arm64
 
@@ -352,11 +372,13 @@ grcc-copy-windows-x64: grcc-lib-windows-x64
 grcc-copy-windows-arm64: grcc-lib-windows-arm64
 	install -d $(GRCC_WINDOWS_ARM64_DST) && cp $(GRCC_WINDOWS_ARM64_SRC) $(GRCC_WINDOWS_ARM64_DST)
 
-grcc-copy-android: grcc-check-android-host grcc-lib-android-arm64 grcc-lib-android-arm32 grcc-lib-android-x64 grcc-lib-android-x32
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# grcc-copy-android: grcc-check-android-host grcc-lib-android-arm64 grcc-lib-android-arm32 grcc-lib-android-x64 grcc-lib-android-x32
+grcc-copy-android: grcc-check-android-host grcc-lib-android-arm64 grcc-lib-android-x64
 	install -d $(GRCC_ANDROID_ARM64_DST) && cp $(GRCC_ANDROID_ARM64_SRC) $(GRCC_ANDROID_ARM64_DST)
-	install -d $(GRCC_ANDROID_ARM32_DST) && cp $(GRCC_ANDROID_ARM32_SRC) $(GRCC_ANDROID_ARM32_DST)
+	# install -d $(GRCC_ANDROID_ARM32_DST) && cp $(GRCC_ANDROID_ARM32_SRC) $(GRCC_ANDROID_ARM32_DST)
 	install -d $(GRCC_ANDROID_X64_DST) && cp $(GRCC_ANDROID_X64_SRC) $(GRCC_ANDROID_X64_DST)
-	install -d $(GRCC_ANDROID_X32_DST) && cp $(GRCC_ANDROID_X32_SRC) $(GRCC_ANDROID_X32_DST)
+	# install -d $(GRCC_ANDROID_X32_DST) && cp $(GRCC_ANDROID_X32_SRC) $(GRCC_ANDROID_X32_DST)
 
 grcc-copy-macosx: grcc-lib-macosx-x64 grcc-lib-macosx-arm64
 	install -d $(GRCC_MACOSX_X64_DST) && cp $(GRCC_MACOSX_X64_SRC) $(GRCC_MACOSX_X64_DST)
@@ -370,10 +392,12 @@ grcc-copy-linux-x64: grcc-lib-linux-x64
 grcc-copy-linux-arm64: grcc-lib-linux-arm64
 	install -d $(GRCC_LINUX_ARM64_DST) && cp $(GRCC_LINUX_ARM64_SRC) $(GRCC_LINUX_ARM64_DST)
 
-grcc-copy-wasm: grcc-lib-wasm
-	install -d $(GRCC_WASM_DST) && cp $(GRCC_WASM_SRC) $(GRCC_WASM_DST)
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# grcc-copy-wasm: grcc-lib-wasm
+# 	install -d $(GRCC_WASM_DST) && cp $(GRCC_WASM_SRC) $(GRCC_WASM_DST)
 
-grcc-pkg-all: grcc-pkg-windows grcc-pkg-android grcc-pkg-macosx grcc-pkg-linux grcc-pkg-wasm grcc-pkg-source
+# grcc-pkg-all: grcc-pkg-windows grcc-pkg-android grcc-pkg-macosx grcc-pkg-linux grcc-pkg-wasm grcc-pkg-source
+grcc-pkg-all: grcc-pkg-windows grcc-pkg-android grcc-pkg-macosx grcc-pkg-linux grcc-pkg-source
 
 # [TODO] report this bug, need to launch the export twice for it to work, else complains about missing lib
 GRCC_PKG_BUILDX2=godot/buildx2.sh
@@ -385,7 +409,8 @@ GRCC_EXPORT_PRESET_ANDROID=Android
 GRCC_EXPORT_PRESET_MACOSX=macOS
 GRCC_EXPORT_PRESET_LINUX_X64=Linux x64
 GRCC_EXPORT_PRESET_LINUX_ARM64=Linux arm64
-GRCC_EXPORT_PRESET_WEB=Web
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# GRCC_EXPORT_PRESET_WEB=Web
 
 grcc-pkg-windows: grcc-pkg-windows-x64 grcc-pkg-windows-arm64
 
@@ -429,12 +454,13 @@ grcc-pkg-linux-arm64: grcc-copy-linux-arm64
 	mv godot/$(GRCC_GAME_PKG_NAME) godot/lib$(GRCC_GODOT_RUST_LIB_NAME).so $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_LINUX_ARM64_PKG)
 	cd $(GRCC_EXPORT_DIR) && tar czf $(GRCC_EXPORT_LINUX_ARM64_PKG).tar.gz $(GRCC_EXPORT_LINUX_ARM64_PKG) && rm -rf $(GRCC_EXPORT_LINUX_ARM64_PKG)
 
-grcc-pkg-wasm: grcc-copy-wasm
-	rm -rf $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WASM_PKG) $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WASM_PKG).zip
-	install -d $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WASM_PKG)
-	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_WEB)" $(GRCC_EXPORT_WASM_PKG)/index.html ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
-	mv godot/$(GRCC_EXPORT_WASM_PKG) $(GRCC_EXPORT_DIR)/
-	cd $(GRCC_EXPORT_DIR) && zip -r $(GRCC_EXPORT_WASM_PKG).zip $(GRCC_EXPORT_WASM_PKG) && rm -rf $(GRCC_EXPORT_WASM_PKG)
+# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+# grcc-pkg-wasm: grcc-copy-wasm
+# 	rm -rf $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WASM_PKG) $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WASM_PKG).zip
+# 	install -d $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WASM_PKG)
+# 	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_WEB)" $(GRCC_EXPORT_WASM_PKG)/index.html ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
+# 	mv godot/$(GRCC_EXPORT_WASM_PKG) $(GRCC_EXPORT_DIR)/
+# 	cd $(GRCC_EXPORT_DIR) && zip -r $(GRCC_EXPORT_WASM_PKG).zip $(GRCC_EXPORT_WASM_PKG) && rm -rf $(GRCC_EXPORT_WASM_PKG)
 
 grcc-pkg-source: .git/config grcc-clean-prepare
 	export REPO="$$(grep url .git/config | head -n 1 | cut -d = -f 2)" && install -d $(GRCC_EXPORT_DIR) && rm -f $(GRCC_EXPORT_DIR)/$(GRCC_GAME_REPO_NAME).tar && tar cf $(GRCC_EXPORT_DIR)/$(GRCC_GAME_REPO_NAME).tar --exclude=.git --exclude=export --exclude=rust/target --exclude=godot/.godot . && cd $(GRCC_EXPORT_DIR) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -f $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip && mkdir $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && cd $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && tar xf ../$(GRCC_GAME_REPO_NAME).tar && cd .. && rm $(GRCC_GAME_REPO_NAME).tar && tar czf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && zip -r $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION)

@@ -19,7 +19,7 @@ This project provides:
 Supported Platforms
 -------------------
 
-The Docker image supports **11 build targets** across 5 platforms:
+The Docker image supports **8 build targets** across 4 platforms:
 
 | Platform | Architecture | Rust Target | Notes |
 |----------|-------------|-------------|-------|
@@ -30,10 +30,13 @@ The Docker image supports **11 build targets** across 5 platforms:
 | **Linux** | x86_64 | `x86_64-unknown-linux-gnu` | Standard Linux PCs |
 | **Linux** | ARM64 | `aarch64-unknown-linux-gnu` | Raspberry Pi 4, Linux ARM servers |
 | **Android** | ARM64 | `aarch64-linux-android` | Modern Android phones/tablets |
-| **Android** | ARM32 | `armv7-linux-androideabi` | Older Android devices |
 | **Android** | x86_64 | `x86_64-linux-android` | Android emulators, Chromebooks |
+
+<!-- 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
+| **Android** | ARM32 | `armv7-linux-androideabi` | Older Android devices |
 | **Android** | x86 (32-bit) | `i686-linux-android` | Older Android emulators |
 | **Web** | WASM32 | `wasm32-unknown-unknown` | Browser-based games |
+-->
 
 All targets are officially supported by Godot 4 export templates.
 
