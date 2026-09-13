@@ -6,12 +6,9 @@ reloadable = true
 
 [libraries]
 
-macos.debug = "res://gdnative/macosx/libcctoy.macos.template_debug.framework"
-macos.release = "res://gdnative/macosx/libcctoy.macos.template_release.framework"
-macos.debug.x86_64 = "res://gdnative/macosx/x86_64-apple-darwin/libcctoy.dylib"
-macos.release.x86_64 = "res://gdnative/macosx/x86_64-apple-darwin/libcctoy.dylib"
-macos.debug.arm64 = "res://gdnative/macosx/aarch64-apple-darwin/libcctoy.dylib"
-macos.release.arm64 = "res://gdnative/macosx/aarch64-apple-darwin/libcctoy.dylib"
+; universal dylib built by grcc-lib-macosx-universal (lipo of x86_64 + arm64)
+macos.debug = "res://gdnative/macosx/universal/libcctoy.dylib"
+macos.release = "res://gdnative/macosx/universal/libcctoy.dylib"
 windows.debug.x86_64 = "res://gdnative/windows/x86_64-pc-windows-gnullvm/cctoy.dll"
 windows.release.x86_64 = "res://gdnative/windows/x86_64-pc-windows-gnullvm/cctoy.dll"
 windows.debug.arm64 = "res://gdnative/windows/aarch64-pc-windows-gnullvm/cctoy.dll"
@@ -24,10 +21,12 @@ android.debug.arm64 = "res://gdnative/android/aarch64-linux-android/libcctoy.so"
 android.release.arm64 = "res://gdnative/android/aarch64-linux-android/libcctoy.so"
 android.debug.x86_64 = "res://gdnative/android/x86_64-linux-android/libcctoy.so"
 android.release.x86_64 = "res://gdnative/android/x86_64-linux-android/libcctoy.so"
-; 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
-; android.debug.arm32 = "res://gdnative/android/armv7-linux-androideabi/libcctoy.so"
-; android.release.arm32 = "res://gdnative/android/armv7-linux-androideabi/libcctoy.so"
-; android.debug.x86_32 = "res://gdnative/android/i686-linux-android/libcctoy.so"
-; android.release.x86_32 = "res://gdnative/android/i686-linux-android/libcctoy.so"
-; web.debug.wasm32 = "res://gdnative/wasm/wasm32-unknown-unknown/cctoy.wasm"
-; web.release.wasm32 = "res://gdnative/wasm/wasm32-unknown-unknown/cctoy.wasm"
+android.debug.arm32 = "res://gdnative/android/armv7-linux-androideabi/libcctoy.so"
+android.release.arm32 = "res://gdnative/android/armv7-linux-androideabi/libcctoy.so"
+android.debug.x86_32 = "res://gdnative/android/i686-linux-android/libcctoy.so"
+android.release.x86_32 = "res://gdnative/android/i686-linux-android/libcctoy.so"
+; Godot picks .threads.wasm when the Web preset has Thread Support enabled
+web.debug.threads.wasm32 = "res://gdnative/web/wasm32-unknown-emscripten/cctoy.threads.wasm"
+web.release.threads.wasm32 = "res://gdnative/web/wasm32-unknown-emscripten/cctoy.threads.wasm"
+web.debug.wasm32 = "res://gdnative/web/wasm32-unknown-emscripten/cctoy.wasm"
+web.release.wasm32 = "res://gdnative/web/wasm32-unknown-emscripten/cctoy.wasm"

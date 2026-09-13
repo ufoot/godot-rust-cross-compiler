@@ -3,7 +3,7 @@ Godot Rust Cross Compiler
 
 A Docker-based cross-compilation toolchain for building [Godot 4](https://godotengine.org) games with [Rust](https://www.rust-lang.org) using [godot-rust (gdext)](https://godot-rust.github.io/).
 
-Version 0.3.0 - Godot 4 + GDExtension
+Version 0.3.1 - Godot 4 + GDExtension
 
 What is this?
 -------------
@@ -19,7 +19,7 @@ This project provides:
 Supported Platforms
 -------------------
 
-The Docker image supports **8 build targets** across 4 platforms:
+The Docker image supports **11 build targets** across 5 platforms:
 
 | Platform | Architecture | Rust Target | Notes |
 |----------|-------------|-------------|-------|
@@ -31,12 +31,9 @@ The Docker image supports **8 build targets** across 4 platforms:
 | **Linux** | ARM64 | `aarch64-unknown-linux-gnu` | Raspberry Pi 4, Linux ARM servers |
 | **Android** | ARM64 | `aarch64-linux-android` | Modern Android phones/tablets |
 | **Android** | x86_64 | `x86_64-linux-android` | Android emulators, Chromebooks |
-
-<!-- 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
 | **Android** | ARM32 | `armv7-linux-androideabi` | Older Android devices |
 | **Android** | x86 (32-bit) | `i686-linux-android` | Older Android emulators |
-| **Web** | WASM32 | `wasm32-unknown-unknown` | Browser-based games |
--->
+| **Web** | WASM32 | `wasm32-unknown-emscripten` | Browsers (threads and nothreads builds) |
 
 All targets are officially supported by Godot 4 export templates.
 
@@ -79,7 +76,8 @@ Docker Image Details
 The image is based on **Ubuntu Noble (24.04)** and includes:
 
 ### Core Tools
-- Rust stable with all 11 target toolchains
+- Rust stable with the 10 native cross targets, plus Rust nightly with `rust-src` and `wasm32-unknown-emscripten`
+- [Emscripten](https://emscripten.org) 4.0.11 (the version Godot 4.7 web templates are built with)
 - GCC and Clang for native compilation
 - [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) for Windows cross-compilation (x86_64 and ARM64)
 - `gcc-aarch64-linux-gnu` for Linux ARM64 cross-compilation
@@ -102,7 +100,7 @@ The image is based on **Ubuntu Noble (24.04)** and includes:
 - [NSIS](https://nsis.sourceforge.io/) for creating Windows installers (.exe)
 
 ### Godot 4
-- **Godot 4.5.1** (headless mode for CI)
+- **Godot 4.7.2** (headless mode for CI)
 - Export templates for all platforms (including Web/WASM)
 - Pre-configured editor settings for Android export
 
@@ -150,11 +148,12 @@ compatibility_minimum = 4.1
 reloadable = true
 
 [libraries]
-macos.debug.arm64 = "res://gdnative/macosx/aarch64-apple-darwin/libcctoy.dylib"
+macos.debug = "res://gdnative/macosx/universal/libcctoy.dylib"  # lipo of x86_64 + arm64
 windows.debug.x86_64 = "res://gdnative/windows/x86_64-pc-windows-gnullvm/cctoy.dll"
 linux.debug.x86_64 = "res://gdnative/linux/x86_64-unknown-linux-gnu/libcctoy.so"
 android.debug.arm64 = "res://gdnative/android/aarch64-linux-android/libcctoy.so"
-web.debug.wasm32 = "res://gdnative/wasm/wasm32-unknown-unknown/cctoy.wasm"
+web.debug.wasm32 = "res://gdnative/web/wasm32-unknown-emscripten/cctoy.wasm"
+web.debug.threads.wasm32 = "res://gdnative/web/wasm32-unknown-emscripten/cctoy.threads.wasm"
 # ... (see file for complete list)
 ```
 
@@ -197,10 +196,30 @@ make grcc-lib-windows        # Windows x64 + ARM64
 make grcc-lib-windows-x64    # Windows x64 only
 make grcc-lib-windows-arm64  # Windows ARM64 only
 make grcc-lib-android        # All Android architectures
-make grcc-lib-macosx         # macOS x64 + ARM64
+make grcc-lib-macosx         # macOS x64 + ARM64, merged into a universal dylib with lipo
 make grcc-lib-linux          # Linux x64 + x32 + ARM64
-make grcc-lib-wasm           # Web/WASM (with wasm-opt optimization)
+make grcc-lib-wasm           # Web: threaded + nothreads Emscripten side modules
 ```
+
+### Overridable settings
+
+Set these in your Makefile *before* `include grcc.mk`:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `GRCC_DOCKER_IMAGE` | `ufoot/godot-rust-cross-compiler:0.3.1` | image used for cross builds and exports |
+| `GRCC_GODOT_HEADLESS` | `godot --headless` | Godot command used for exports |
+| `GRCC_EXPORT_PRESET_WINDOWS_X64` … `_LINUX_ARM64` | `Windows Desktop x64`, `Windows Desktop arm64`, `Android`, `macOS`, `Linux x64`, `Linux arm64` | export preset names |
+| `GRCC_GAME_PUBLISHER` | `Unknown Publisher` | NSIS installer publisher |
+
+### macOS universal library
+
+A macOS "universal" export copies every matching GDExtension library into the
+app bundle by file name, so separate x86_64 and arm64 dylibs with the same name
+clash. `grcc-lib-macosx` therefore merges them with `lipo` into
+`godot/gdnative/macosx/universal/lib<name>.dylib`; reference that file from
+`macos.debug` / `macos.release` without an architecture tag. `make native` on a
+Mac also copies the local debug build there.
 
 ### Docker Detection
 
@@ -259,7 +278,26 @@ Some targets require environment variable overrides:
 | macOS x64 | `CC=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin23.5-clang`<br>`C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include` |
 | macOS ARM64 | `CC=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23.5-clang`<br>`C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include` |
 
-Android, Linux, Windows, and WASM targets work without additional environment variables.
+Android, Linux and Windows targets work without additional environment variables.
+
+### Web (WASM)
+
+Web builds follow the [godot-rust web export guide](https://godot-rust.github.io/book/toolchain/export-web.html):
+
+- target `wasm32-unknown-emscripten`, built with `cargo +nightly build -Zbuild-std`
+- `emcc` on the `PATH`, same version as Godot's web templates (4.0.11 for Godot 4.7)
+- `grcc-lib-wasm` builds the crate twice, into separate target dirs:
+  - threaded (`-C link-args=-pthread -C target-feature=+atomics`), copied as `lib.threads.wasm`
+  - nothreads (`--features nothreads`), copied as `lib.wasm`
+- your GDExtension crate must declare
+  ```toml
+  [features]
+  nothreads = ["godot/experimental-wasm-nothreads"]
+  ```
+  (forward it to other workspace crates that depend on `godot`)
+- the Web export preset needs *Extensions Support* on. With *Thread Support*
+  off (recommended) the game runs on any static host; with it on, the server
+  must send cross-origin isolation headers (itch.io does).
 
 CI/CD Integration
 -----------------
@@ -332,7 +370,7 @@ Docker runs as root, so generated files may be owned by root on your host. Use `
 Migration from Godot 3
 ----------------------
 
-This version (0.3.0) targets Godot 4. Key changes from the Godot 3 version:
+This version (0.3.1) targets Godot 4. Key changes from the Godot 3 version:
 
 1. **GDNative → GDExtension**: Replace `.gdnlib` files with `.gdextension`
 2. **gdnative crate → godot crate**: Update Rust dependencies
@@ -357,7 +395,7 @@ Bugs and Limitations
 --------------------
 
 - No iOS support (requires Xcode)
-- Web/WASM support is experimental (requires `experimental-wasm-nothreads` feature in gdext)
+- Web support in godot-rust is experimental; Rust panics abort the game in the browser
 - Runs as root in container
 - Android APKs are debug-signed only
 - Windows installers and macOS DMGs are unsigned

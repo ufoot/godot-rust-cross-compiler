@@ -1,16 +1,20 @@
-# Godot Rust Cross Compiler
-# -------------------------
+# Godot Rust Cross Compiler - Staged Build
+# -----------------------------------------
+#
+# Multi-stage build for easier debugging. Use --target to stop at any stage:
+#   docker build --target godot -t grcc-godot .
+#   docker build --target web -t grcc-web .
 #
 # See https://github.com/ufoot/godot-rust-cross-compiler for details
 
-FROM ubuntu:noble
+# =============================================================================
+# Stage: base - System packages
+# =============================================================================
+FROM ubuntu:noble AS base
 
 LABEL maintainer="Christian Mauduit <ufoot@ufoot.org>"
-ENV GRCC_VERSION=0.3.0
-LABEL package="godot-rust-cross-compiler" version="$GRCC_VERSION" description="An image to cross-compile to Windows, Android, Mac OS X and Linux your godot-rust based libraries for Godot 4."
-
-# Prepare the system, install Debian packages
-# -------------------------------------------
+ENV GRCC_VERSION=0.3.1
+LABEL package="godot-rust-cross-compiler" version="$GRCC_VERSION" description="An image to cross-compile to Windows, Android, Mac OS X, Linux and Web your godot-rust based libraries for Godot 4."
 
 RUN apt-get update
 RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata
@@ -27,13 +31,16 @@ RUN apt-get install -yq \
     xvfb \
     gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
     gcc-x86-64-linux-gnu g++-x86-64-linux-gnu \
+    gcc-i686-linux-gnu g++-i686-linux-gnu \
     nsis \
     genisoimage \
     binaryen \
     && apt-get clean
 
-# Install Android command line tools and NDK
-# ------------------------------------------
+# =============================================================================
+# Stage: android - Android SDK/NDK
+# =============================================================================
+FROM base AS android
 
 ARG ANDROID_BUILD_TOOLS_PATH=/opt/android-build-tools
 ARG ANDROID_BASE_URL=https://dl.google.com/android/repository
@@ -43,15 +50,12 @@ ARG ANDROID_CMDLINE_TOOLS_URL=$ANDROID_BASE_URL/$ANDROID_CMDLINE_TOOLS_FILENAME
 
 ENV ANDROID_HOME=$ANDROID_BUILD_TOOLS_PATH/android-sdk
 ENV ANDROID_SDK_ROOT=$ANDROID_HOME
-# JAVA_HOME is set dynamically based on architecture during build
 
 WORKDIR $ANDROID_BUILD_TOOLS_PATH
 
-# Detect architecture for NDK toolchain path
 ARG TARGETARCH
 ARG NDK_VERSION=27.2.12479018
 
-# Install SDK, NDK, then clean up unused NDK components
 RUN wget -nc -nv $ANDROID_CMDLINE_TOOLS_URL && \
     unzip -q $ANDROID_CMDLINE_TOOLS_FILENAME && \
     rm $ANDROID_CMDLINE_TOOLS_FILENAME && \
@@ -59,65 +63,64 @@ RUN wget -nc -nv $ANDROID_CMDLINE_TOOLS_URL && \
     mv cmdline-tools android-sdk/cmdline-tools/latest && \
     export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java)))) && \
     yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses && \
-    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;$NDK_VERSION" "cmdline-tools;latest" && \
-    # Remove unused NDK toolchains (keep only current host architecture) \
+    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.1.0" "ndk;$NDK_VERSION" "cmdline-tools;latest" && \
     rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/darwin-x86_64 2>/dev/null || true && \
     rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/windows-x86_64 2>/dev/null || true && \
     rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/windows 2>/dev/null || true && \
-    # Remove NDK simpleperf, shader-tools, renderscript (not needed for Rust) \
     rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/simpleperf 2>/dev/null || true && \
     rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/shader-tools 2>/dev/null || true && \
     rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/sources/third_party/shaderc 2>/dev/null || true && \
     rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/sources/cxx-stl/llvm-libc++/test 2>/dev/null || true && \
-    # Clean up zip cache \
     rm -rf /root/.android/cache/*
 
 ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
 ENV ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.2.12479018
 ENV NDK_HOME=$ANDROID_NDK_ROOT
 
-# Install bundletool for AAB support
 ARG BUNDLETOOL_VERSION=1.17.2
 RUN wget -nc -nv https://github.com/google/bundletool/releases/download/$BUNDLETOOL_VERSION/bundletool-all-$BUNDLETOOL_VERSION.jar -O /opt/bundletool.jar
 
-# Install Rust
-# ------------
+# =============================================================================
+# Stage: rust - Rust installation and cross-compile config
+# =============================================================================
+FROM android AS rust
+
+ARG TARGETARCH
 
 RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y --profile minimal
 ENV PATH=/root/.cargo/bin:$PATH
 
-# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
 RUN rustup target add \
     x86_64-pc-windows-gnullvm \
     aarch64-pc-windows-gnullvm \
     aarch64-linux-android \
+    armv7-linux-androideabi \
     x86_64-linux-android \
+    i686-linux-android \
     x86_64-apple-darwin \
     aarch64-apple-darwin \
     x86_64-unknown-linux-gnu \
     aarch64-unknown-linux-gnu
-    # armv7-linux-androideabi \
-    # i686-linux-android \
-    # wasm32-unknown-unknown
 
 RUN mkdir -p /root/.cargo/git /root/.cargo/registry
 
-# Configure Rust for Android cross-compiling
-# ------------------------------------------
-# NDK toolchain path depends on host architecture (linux-x86_64 or linux-aarch64)
-
 ARG ANDROID_API_LEVEL=21
+ARG NDK_VERSION=27.2.12479018
 
-# 32-bit targets temporarily disabled - godot4+rust doesn't support them yet, should be back soon ;)
 RUN NDK_HOST=$(if [ "$TARGETARCH" = "arm64" ]; then echo "linux-aarch64"; else echo "linux-x86_64"; fi) && \
     NDK_TOOLCHAIN="$ANDROID_HOME/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/$NDK_HOST/bin" && \
     echo "[target.aarch64-linux-android]" >> /root/.cargo/config.toml && \
     echo "linker = \"$NDK_TOOLCHAIN/aarch64-linux-android${ANDROID_API_LEVEL}-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml && \
+    echo "[target.armv7-linux-androideabi]" >> /root/.cargo/config.toml && \
+    echo "linker = \"$NDK_TOOLCHAIN/armv7a-linux-androideabi${ANDROID_API_LEVEL}-clang\"" >> /root/.cargo/config.toml && \
+    echo "" >> /root/.cargo/config.toml && \
     echo "[target.x86_64-linux-android]" >> /root/.cargo/config.toml && \
     echo "linker = \"$NDK_TOOLCHAIN/x86_64-linux-android${ANDROID_API_LEVEL}-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml && \
-    # Linux cross-compilation linkers (architecture-dependent) \
+    echo "[target.i686-linux-android]" >> /root/.cargo/config.toml && \
+    echo "linker = \"$NDK_TOOLCHAIN/i686-linux-android${ANDROID_API_LEVEL}-clang\"" >> /root/.cargo/config.toml && \
+    echo "" >> /root/.cargo/config.toml && \
     if [ "$TARGETARCH" = "arm64" ]; then \
         echo "[target.x86_64-unknown-linux-gnu]" >> /root/.cargo/config.toml && \
         echo "linker = \"x86_64-linux-gnu-gcc\"" >> /root/.cargo/config.toml && \
@@ -128,8 +131,12 @@ RUN NDK_HOST=$(if [ "$TARGETARCH" = "arm64" ]; then echo "linux-aarch64"; else e
         echo "" >> /root/.cargo/config.toml; \
     fi
 
-# Install llvm-mingw for Windows cross-compiling (x64 and ARM64)
-# URL depends on host architecture (x86_64 or aarch64)
+# =============================================================================
+# Stage: windows-cross - llvm-mingw for Windows cross-compiling
+# =============================================================================
+FROM rust AS windows-cross
+
+ARG TARGETARCH
 ARG LLVM_MINGW_VERSION=20241119
 RUN LLVM_HOST_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "aarch64"; else echo "x86_64"; fi) && \
     LLVM_MINGW_URL="https://github.com/mstorsjo/llvm-mingw/releases/download/$LLVM_MINGW_VERSION/llvm-mingw-$LLVM_MINGW_VERSION-ucrt-ubuntu-20.04-$LLVM_HOST_ARCH.tar.xz" && \
@@ -137,16 +144,13 @@ RUN LLVM_HOST_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "aarch64"; else e
     tar -xf /tmp/llvm-mingw.tar.xz -C /opt && \
     rm /tmp/llvm-mingw.tar.xz && \
     mv /opt/llvm-mingw-$LLVM_MINGW_VERSION-ucrt-ubuntu-20.04-$LLVM_HOST_ARCH /opt/llvm-mingw && \
-    # Remove i686 and armv7 toolchains (not needed, keep x86_64 and aarch64) \
     rm -rf /opt/llvm-mingw/i686-w64-mingw32 && \
     rm -rf /opt/llvm-mingw/armv7-w64-mingw32 && \
-    # Remove lib directories for removed targets \
     find /opt/llvm-mingw/lib -name '*i686*' -delete 2>/dev/null || true && \
     find /opt/llvm-mingw/lib -name '*armv7*' -delete 2>/dev/null || true
 
 ENV PATH=/opt/llvm-mingw/bin:$PATH
 
-# Configure Windows cross-compiling (x64 and ARM64)
 RUN echo "[target.x86_64-pc-windows-gnullvm]" >> /root/.cargo/config.toml && \
     echo "linker = \"/opt/llvm-mingw/bin/x86_64-w64-mingw32-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml && \
@@ -154,8 +158,10 @@ RUN echo "[target.x86_64-pc-windows-gnullvm]" >> /root/.cargo/config.toml && \
     echo "linker = \"/opt/llvm-mingw/bin/aarch64-w64-mingw32-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml
 
-# Install OSX cross build env
-# ---------------------------
+# =============================================================================
+# Stage: macos-cross - OSXCross for macOS cross-compiling
+# =============================================================================
+FROM windows-cross AS macos-cross
 
 ARG MACOSX_BUILD_TOOLS_PATH=/opt/macosx-build-tools
 ARG OSXCROSS_PATH=$MACOSX_BUILD_TOOLS_PATH/osxcross
@@ -176,8 +182,6 @@ RUN UNATTENDED=yes OSX_VERSION_MIN=11.0 TARGET_DIR=$MACOSX_CROSS_COMPILER_PATH .
 
 ENV PATH=$MACOSX_CROSS_COMPILER_PATH/bin:$PATH
 
-# Configure Rust for Mac OS X cross-compiling
-# Note: darwin version suffix matches SDK version (14.5 -> darwin23.5)
 RUN echo "[target.x86_64-apple-darwin]" >> /root/.cargo/config.toml && \
     echo "linker = \"$MACOSX_CROSS_COMPILER_PATH/bin/x86_64-apple-darwin23.5-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml && \
@@ -185,11 +189,13 @@ RUN echo "[target.x86_64-apple-darwin]" >> /root/.cargo/config.toml && \
     echo "linker = \"$MACOSX_CROSS_COMPILER_PATH/bin/aarch64-apple-darwin23.5-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml
 
-# Install Godot 4
-# ---------------
-# Binary depends on host architecture (x86_64 or arm64)
+# =============================================================================
+# Stage: godot - Godot engine, templates, and editor config
+# =============================================================================
+FROM macos-cross AS godot
 
-ENV GODOT_VERSION=4.5.1
+ARG TARGETARCH
+ENV GODOT_VERSION=4.7.2
 ARG GODOT_BASE_URL=https://github.com/godotengine/godot/releases/download
 ENV GODOT_DIR=/opt/godotengine
 
@@ -204,9 +210,6 @@ RUN GODOT_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "arm64"; else echo "x
 
 ENV PATH=$GODOT_DIR:$PATH
 
-# Install Godot 4 export templates
-# --------------------------------
-
 ARG GODOT_TEMPLATE_DIR=/root/.local/share/godot/export_templates
 
 WORKDIR $GODOT_TEMPLATE_DIR
@@ -215,9 +218,6 @@ RUN wget -nc -nv $GODOT_BASE_URL/$GODOT_VERSION-stable/Godot_v$GODOT_VERSION-sta
     unzip -q Godot_v$GODOT_VERSION-stable_export_templates.tpz && \
     rm Godot_v$GODOT_VERSION-stable_export_templates.tpz && \
     mv templates $GODOT_VERSION.stable
-
-# Setup editor defaults so that export works
-# ------------------------------------------
 
 ARG ANDROID_KEYSTORE_DIR=/root/.android
 WORKDIR $ANDROID_KEYSTORE_DIR
@@ -236,25 +236,49 @@ RUN JAVA_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "arm64"; else echo "am
     echo 'export/android/debug_keystore_user = "androiddebugkey"' >> $GODOT_EDITOR_CONFIG_FILENAME && \
     echo 'export/android/debug_keystore_pass = "android"' >> $GODOT_EDITOR_CONFIG_FILENAME
 
-# Mark the system as being a godot-rust-cross-compiler image
-# ----------------------------------------------------------
+# =============================================================================
+# Stage: web - Emscripten + nightly Rust for wasm32-unknown-emscripten
+# =============================================================================
+# godot-rust web builds are Emscripten side modules. They need nightly Rust
+# (-Zbuild-std and a few -Z flags) and an emcc matching the one Godot used for
+# its web export templates (see .github/workflows/web_builds.yml in godot).
+FROM godot AS web
+
+ENV EMSDK_VERSION=4.0.11
+ENV EMSDK=/opt/emsdk
+
+RUN git clone --depth 1 https://github.com/emscripten-core/emsdk.git $EMSDK && \
+    cd $EMSDK && \
+    ./emsdk install $EMSDK_VERSION && \
+    ./emsdk activate $EMSDK_VERSION && \
+    rm -rf $EMSDK/downloads
+
+ENV PATH=$EMSDK:$EMSDK/upstream/emscripten:$PATH
+
+RUN rustup toolchain install nightly --profile minimal --component rust-src --target wasm32-unknown-emscripten
+
+# Flags shared by threaded and nothreads builds; grcc.mk adds -pthread/+atomics
+# through RUSTFLAGS for the threaded variant (RUSTFLAGS overrides this list).
+RUN echo "[target.wasm32-unknown-emscripten]" >> /root/.cargo/config.toml && \
+    echo 'rustflags = ["-C", "link-args=-sSIDE_MODULE=2", "-C", "llvm-args=-enable-emscripten-cxx-exceptions=0", "-Z", "default-visibility=hidden", "-Z", "link-native-libraries=no", "-Z", "emscripten-wasm-eh=false"]' >> /root/.cargo/config.toml && \
+    echo "" >> /root/.cargo/config.toml
+
+# =============================================================================
+# Stage: final - Version marker, GRCC resources, working directory
+# =============================================================================
+FROM web AS final
 
 WORKDIR /opt
 RUN echo $GRCC_VERSION > godot-rust-cross-compiler.txt
 
-# Install GRCC resources (installer templates, etc.)
-# --------------------------------------------------
-
 RUN mkdir -p /opt/grcc
 COPY installer.nsi.template /opt/grcc/installer.nsi.template
-
-# Work in /build
-# --------------
 
 WORKDIR /build
 
 # Example usage:
 # docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler cargo build --release --target aarch64-linux-android
+# docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler cargo +nightly build -Zbuild-std --release --target wasm32-unknown-emscripten
 #
 # Using a cache:
 # install -d /tmp/.cargo/git

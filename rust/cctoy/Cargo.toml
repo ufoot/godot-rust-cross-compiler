@@ -1,14 +1,18 @@
 [package]
 name = "cctoy"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Christian Mauduit (ufoot) <ufoot@ufoot.org>"]
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-godot = "0.4.5"
+godot = "0.5.5"
 withgodot = { path = "../withgodot" }
+
+[features]
+# Web build without thread support (see grcc-lib-wasm-nothreads)
+nothreads = ["withgodot/nothreads", "godot/experimental-wasm-nothreads"]
 
 [lib]
 crate-type = ["cdylib"]

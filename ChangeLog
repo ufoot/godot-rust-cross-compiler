@@ -1,3 +1,9 @@
+2026-09-13  Christian Mauduit <ufoot@ufoot.org>
+
+	* Version 0.3.1, Godot 4.7.2, pinned image tag in grcc.mk
+	(GRCC_DOCKER_IMAGE), overridable Godot command and preset names,
+	universal macOS dylib via lipo, native copy on arm64 Linux hosts.
+
 2021-01-30  Christian Mauduit <ufoot@ufoot.org>
 
 	* Lighter packages, removing .import from export.
