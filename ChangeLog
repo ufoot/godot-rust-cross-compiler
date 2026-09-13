@@ -19,6 +19,8 @@
 	Toy project imports both S3TC/BPTC and ETC2/ASTC (exports from either arch).
 	Toy crates enable godot experimental-wasm, required for any wasm build.
 	Windows installers: makensis -NOCD so project-relative paths resolve.
+	Image builds libdmg-hfsplus (Mozilla fork) for grcc-dmg-macosx, which
+	now calls "dmg dmg".
 
 2021-01-30  Christian Mauduit <ufoot@ufoot.org>
 

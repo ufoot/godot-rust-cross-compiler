@@ -207,6 +207,19 @@ RUN bash -o pipefail -c "UNATTENDED=1 BUILD_FLAVOR=llvm OSX_VERSION_MIN=11.0 TAR
     test -d $MACOSX_CROSS_COMPILER_PATH/SDK/MacOSX$MACOSX_SDK_VERSION.sdk/usr/include
 
 ENV PATH=$MACOSX_CROSS_COMPILER_PATH/bin:$PATH
+# libdmg-hfsplus "dmg" tool (not packaged by Ubuntu), used by grcc-dmg-macosx to
+# turn the genisoimage hybrid image into a compressed UDIF .dmg. Mozilla's fork
+# is the maintained one (Firefox builds its DMGs on Linux with it).
+ARG LIBDMG_HFSPLUS_COMMIT=ec239599c1f234a4e01ae3fe51214d0c77e5baa3
+RUN apt-get update && apt-get install -yq libbz2-dev liblzma-dev liblzfse-dev && apt-get clean && \
+    git clone -b mozilla https://github.com/mozilla/libdmg-hfsplus /tmp/libdmg-hfsplus && \
+    git -C /tmp/libdmg-hfsplus checkout $LIBDMG_HFSPLUS_COMMIT && \
+    cmake -S /tmp/libdmg-hfsplus -B /tmp/libdmg-hfsplus/build -DCMAKE_BUILD_TYPE=Release && \
+    make -C /tmp/libdmg-hfsplus/build -j$(nproc) dmg-bin hfsplus && \
+    install -m 755 /tmp/libdmg-hfsplus/build/dmg/dmg /tmp/libdmg-hfsplus/build/hfs/hfsplus /usr/local/bin/ && \
+    rm -rf /tmp/libdmg-hfsplus && \
+    dmg 2>&1 | grep -q usage
+
 # rustc looks up the SDK for Apple targets through xcrun unless SDKROOT is set.
 ENV SDKROOT=$MACOSX_CROSS_COMPILER_PATH/SDK/MacOSX$MACOSX_SDK_VERSION.sdk
 

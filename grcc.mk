@@ -529,7 +529,8 @@ grcc-installer-windows-arm64: grcc-pkg-windows-arm64
 # macOS DMG (disk image)
 # ----------------------
 # Creates a DMG from the macOS zip export
-# Uses genisoimage to create hybrid ISO and libdmg-hfsplus to convert to DMG
+# Uses genisoimage to create hybrid ISO and libdmg-hfsplus ("dmg dmg <iso> <dmg>")
+# to convert it to a compressed DMG.
 
 GRCC_DMG_BUILDSCRIPT=godot/dmg-build.sh
 
@@ -539,5 +540,5 @@ grcc-dmg-macosx: grcc-pkg-macosx
 	mkdir -p $(GRCC_EXPORT_DIR)/dmg-staging
 	cd $(GRCC_EXPORT_DIR)/dmg-staging && unzip -q ../$(GRCC_EXPORT_MACOSX_PKG).zip
 	echo 'genisoimage -V "$(GRCC_DMG_VOLUME_NAME)" -D -R -apple -no-pad -o $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_MACOSX_PKG).cdr $(GRCC_EXPORT_DIR)/dmg-staging && \
-		dmg $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_MACOSX_PKG).cdr $(GRCC_EXPORT_DIR)/$(GRCC_DMG_MACOSX)' > $(GRCC_DMG_BUILDSCRIPT) && chmod a+x $(GRCC_DMG_BUILDSCRIPT) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_DMG_BUILDSCRIPT) && rm $(GRCC_DMG_BUILDSCRIPT)
+		dmg dmg $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_MACOSX_PKG).cdr $(GRCC_EXPORT_DIR)/$(GRCC_DMG_MACOSX)' > $(GRCC_DMG_BUILDSCRIPT) && chmod a+x $(GRCC_DMG_BUILDSCRIPT) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_DMG_BUILDSCRIPT) && rm $(GRCC_DMG_BUILDSCRIPT)
 	rm -rf $(GRCC_EXPORT_DIR)/dmg-staging $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_MACOSX_PKG).cdr

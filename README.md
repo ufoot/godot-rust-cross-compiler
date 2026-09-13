@@ -108,7 +108,7 @@ The image is based on **Ubuntu Resolute (26.04)** and includes:
 - `SDKROOT` points at the SDK so rustc does not try `xcrun`
 - **macOS SDK 26.1** (supports both x86_64 and ARM64)
 - Minimum deployment target: macOS 11.0
-- `genisoimage` and `dmg` for creating DMG disk images
+- `genisoimage` and `dmg` ([libdmg-hfsplus](https://github.com/mozilla/libdmg-hfsplus), Mozilla fork, built from source) for creating DMG disk images
 
 ### Windows Packaging
 - [NSIS](https://nsis.sourceforge.io/) for creating Windows installers (.exe)
