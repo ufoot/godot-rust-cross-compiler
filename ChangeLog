@@ -7,6 +7,13 @@
 	llvm-mingw 20260908, bundletool 1.18.3, cmdline-tools 15859902,
 	image installs the pinned wasm nightly used by grcc.mk.
 	Base image Ubuntu 26.04 (resolute), JDK 17 only.
+	Native amd64 and arm64 images tagged <version>-<arch>, selected by
+	grcc.mk from the host (GRCC_DOCKER_ARCH). Android builds on arm64
+	through NDK target files + distro clang/lld wrappers.
+	Exports also build the Linux lib the in-image editor loads. Fixed
+	toy export_presets.cfg numbering gap (Godot stops at first missing index).
+	Android release signing via GODOT_ANDROID_KEYSTORE_RELEASE_* (default:
+	image debug keystore); editor no longer runs x86 adb kill-server on exit.
 
 2021-01-30  Christian Mauduit <ufoot@ufoot.org>
 

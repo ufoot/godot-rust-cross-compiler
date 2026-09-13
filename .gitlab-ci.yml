@@ -1,4 +1,4 @@
-image: ufoot/godot-rust-cross-compiler:0.3.1
+image: ufoot/godot-rust-cross-compiler:0.3.1-amd64
 
 native:
   script:

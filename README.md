@@ -40,23 +40,26 @@ All targets are officially supported by Godot 4 export templates.
 ### Not Currently Supported
 
 - **iOS**: Requires Xcode on macOS (cannot cross-compile from Linux)
-- **Android on arm64 Linux hosts**: Google doesn't ship NDK toolchains for arm64 Linux (see [Bugs and Limitations](#android-ndk-and-arm64-linux-hosts))
 
 Quick Start
 -----------
+
+The image is published per host architecture: use `:0.3.1-amd64` on x86_64
+machines and `:0.3.1-arm64` on arm64 ones (Apple Silicon, ARM Linux). Both
+provide the same targets; `grcc.mk` picks the right tag automatically.
 
 ### Building for Android (ARM64)
 
 ```sh
 cd your-rust-project
-docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler \
+docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler:0.3.1-amd64 \
     cargo build --release --target aarch64-linux-android
 ```
 
 ### Building for Windows (x86_64)
 
 ```sh
-docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler \
+docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler:0.3.1-amd64 \
     cargo build --release --target x86_64-pc-windows-gnullvm
 ```
 
@@ -66,7 +69,7 @@ docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler \
 docker run -v $(pwd):/build \
     -e CC=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin25.1-clang \
     -e C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX26.1.sdk/usr/include \
-    ufoot/godot-rust-cross-compiler \
+    ufoot/godot-rust-cross-compiler:0.3.1-amd64 \
     cargo build --release --target aarch64-apple-darwin
 ```
 
@@ -74,6 +77,12 @@ Docker Image Details
 --------------------
 
 The image is based on **Ubuntu Resolute (26.04)** and includes:
+
+### Architectures
+- `linux/amd64` and `linux/arm64` images, built natively and tagged
+  `<version>-amd64` / `<version>-arm64` (plus `latest-amd64` / `latest-arm64`)
+- Same cross targets on both; host-specific tools (llvm-mingw, Godot, Emscripten,
+  JDK) are the native builds for each architecture
 
 ### Core Tools
 - Rust stable with the 10 native cross targets, plus Rust `nightly-2026-06-01` (pinned, see `GRCC_WASM_NIGHTLY`) with `rust-src` and `wasm32-unknown-emscripten`
@@ -87,6 +96,10 @@ The image is based on **Ubuntu Resolute (26.04)** and includes:
 - Android SDK with platform-tools, platform android-36 and build-tools 36.1.0
 - **Android NDK r29 (29.0.14206865)** - the version Godot 4.7 Android templates are built with
 - Android API level 24 minimum (Godot 4.7 `minSdk`)
+- On arm64, where Google ships no NDK host toolchain, the NDK target files
+  (sysroot, `libunwind.a`, compiler-rt builtins) are used with Ubuntu's clang/lld
+  of the same LLVM major version (21) through `<triple><api>-clang` wrappers in
+  `toolchains/llvm/prebuilt/linux-aarch64/bin` (see `docker/android-ndk-arm64-host.sh`)
 - [bundletool](https://github.com/google/bundletool) for AAB (Android App Bundle) support
 - Pre-configured debug keystore for development builds
 
@@ -207,10 +220,13 @@ Set these in your Makefile *before* `include grcc.mk`:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `GRCC_DOCKER_IMAGE` | `ufoot/godot-rust-cross-compiler:0.3.1` | image used for cross builds and exports |
+| `GRCC_DOCKER_ARCH` | `arm64` on aarch64/arm64 hosts, else `amd64` | image flavor; set `amd64` on an arm64 host to force emulation |
+| `GRCC_DOCKER_VERSION` | `0.3.1` | image version |
+| `GRCC_DOCKER_IMAGE` | `ufoot/godot-rust-cross-compiler:$(GRCC_DOCKER_VERSION)-$(GRCC_DOCKER_ARCH)` | image used for cross builds and exports |
 | `GRCC_GODOT_HEADLESS` | `godot --headless` | Godot command used for exports |
 | `GRCC_EXPORT_PRESET_WINDOWS_X64` … `_LINUX_ARM64` | `Windows Desktop x64`, `Windows Desktop arm64`, `Android`, `macOS`, `Linux x64`, `Linux arm64` | export preset names |
 | `GRCC_GAME_PUBLISHER` | `Unknown Publisher` | NSIS installer publisher |
+| `GODOT_ANDROID_KEYSTORE_RELEASE_PATH` / `_USER` / `_PASSWORD` | image debug keystore (`/root/.android/debug.keystore`, `androiddebugkey`, `android`) | Android release signing; path as seen in the container (project is `/build`). Also read from the environment, passed to Docker by name |
 
 ### macOS universal library
 
@@ -237,7 +253,7 @@ docker run \
     -v $(pwd):/build \
     -v /tmp/.cargo/git:/root/.cargo/git \
     -v /tmp/.cargo/registry:/root/.cargo/registry \
-    ufoot/godot-rust-cross-compiler \
+    ufoot/godot-rust-cross-compiler:0.3.1-amd64 \
     cargo build --release --target aarch64-linux-android
 ```
 
@@ -246,7 +262,9 @@ The `grcc.mk` Makefile does this automatically using `target/cross-compiler-cach
 Rust Configuration
 ------------------
 
-The Docker image pre-configures `~/.cargo/config.toml` with linkers for all targets:
+The Docker image pre-configures `~/.cargo/config.toml` with linkers for all targets
+(amd64 image shown; the arm64 image uses `prebuilt/linux-aarch64` for Android and
+`x86_64-linux-gnu-gcc` for `x86_64-unknown-linux-gnu` instead):
 
 ```toml
 [target.aarch64-linux-android]
@@ -310,7 +328,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ufoot/godot-rust-cross-compiler
+      image: ufoot/godot-rust-cross-compiler:0.3.1-amd64
     steps:
       - uses: actions/checkout@v4
       - run: make cross
@@ -320,7 +338,7 @@ jobs:
 ```yaml
 # GitLab CI example
 build:
-  image: ufoot/godot-rust-cross-compiler
+  image: ufoot/godot-rust-cross-compiler:0.3.1-amd64
   script:
     - make cross
     - make export
@@ -342,7 +360,7 @@ The `make export` target creates distribution-ready packages:
 | Web | `export/mygame-web-v1.0.0.zip` | HTML5/WASM package |
 | Source | `export/mygame-1.0.0.tar.gz` | Source tarball |
 
-**Note**: Android APKs are signed with a debug key. For production releases, you'll need to sign with your own keystore.
+**Note**: by default Android APKs are signed with the image's debug keystore. For store releases, keep your keystore in the project (or mount it) and set `GODOT_ANDROID_KEYSTORE_RELEASE_PATH=/build/<path>`, `GODOT_ANDROID_KEYSTORE_RELEASE_USER` and `GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD` in your environment.
 
 Troubleshooting
 ---------------
@@ -386,8 +404,12 @@ To build the image locally:
 
 ```sh
 cd docker
-./build.sh
+./build.sh          # host architecture, tags 0.3.1-<arch> and latest-<arch>
+./build.sh amd64    # or force one (non-native goes through QEMU: very slow)
+./push.sh           # push the tags for the host architecture
 ```
+
+Build each architecture on a native machine, then push from each.
 
 The build takes significant time (30-60 minutes) as it compiles osxcross and downloads all SDKs.
 
@@ -397,33 +419,22 @@ Bugs and Limitations
 - No iOS support (requires Xcode)
 - Web support in godot-rust is experimental; Rust panics abort the game in the browser
 - Runs as root in container
-- Android APKs are debug-signed only
+- Android APKs are debug-signed unless a release keystore is provided
 - Windows installers and macOS DMGs are unsigned
-- **Android builds don't work on arm64 Linux hosts** (see below)
+- On arm64 images, Godot Android exports with *Use Gradle Build* fail: Gradle's `aapt2` (and SDK `platform-tools`/`zipalign`) only exist for x86_64 Linux. Rust builds work; non-Gradle APK exports only need Java tools (`apksigner`) and are expected to work.
 
-### Android NDK and ARM64 Linux Hosts
+### Android on ARM64 Hosts
 
-Google does not provide Android NDK toolchains for arm64 Linux hosts. The NDK only ships with:
-- `linux-x86_64` - for x86_64 Linux hosts
-- `darwin-x86_64` - for macOS (includes arm64/M1 support via fat binaries)
+Google does not provide Android NDK toolchains for arm64 Linux hosts
+([android/ndk#1440](https://github.com/android/ndk/issues/1440)). The arm64
+image works around it by keeping only the NDK's target files and driving them
+with Ubuntu's clang/lld, which must share the NDK's LLVM major version (21 for
+NDK r29). When bumping the NDK or the base image, the build fails early if the
+matching `clang-<major>`/`lld-<major>` is not installed.
 
-This means **Android cross-compilation doesn't work when running the Docker image on arm64 Linux** (e.g., Apple Silicon with arm64 Docker).
-
-**Workarounds:**
-
-1. **Use an x86_64 Docker image** (recommended for CI):
-   ```bash
-   docker build --platform linux/amd64 -t ufoot/godot-rust-cross-compiler:amd64 docker/
-   docker run --platform linux/amd64 ... ufoot/godot-rust-cross-compiler:amd64 ...
-   ```
-
-2. **Build on an x86_64 machine**
-
-3. **Use native macOS** - The NDK includes arm64 macOS support, so Android builds work natively on Apple Silicon without Docker.
-
-The Makefile will detect arm64 hosts and fail early with a helpful error message when attempting Android builds.
-
-See: [GitHub Issue #1440](https://github.com/android/ndk/issues/1440)
+If an arm64 build misbehaves, compare with the amd64 image under emulation:
+`make cross GRCC_DOCKER_ARCH=amd64` (acceptable with Rosetta on macOS, slow
+with QEMU on Linux).
 
 Resources
 ---------

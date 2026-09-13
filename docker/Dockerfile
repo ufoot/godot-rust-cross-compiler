@@ -5,6 +5,10 @@
 #   docker build --target godot -t grcc-godot .
 #   docker build --target web -t grcc-web .
 #
+# Built natively for linux/amd64 and linux/arm64, published as separate tags
+# (<version>-amd64, <version>-arm64), see build.sh. Everything that is
+# host-specific branches on TARGETARCH.
+#
 # See https://github.com/ufoot/godot-rust-cross-compiler for details
 
 # =============================================================================
@@ -24,7 +28,7 @@ RUN apt-get install -yq \
     libasound2-dev bison flex \
     openjdk-17-jdk \
     libssl-dev python3 python-is-python3 \
-    llvm-dev libclang-dev clang \
+    llvm-dev libclang-dev clang lld llvm \
     libncurses-dev \
     libxml2-dev zlib1g-dev \
     ca-certificates \
@@ -73,6 +77,14 @@ RUN wget -nc -nv $ANDROID_CMDLINE_TOOLS_URL && \
     rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/sources/third_party/shaderc 2>/dev/null || true && \
     rm -rf $ANDROID_HOME/ndk/$NDK_VERSION/sources/cxx-stl/llvm-libc++/test 2>/dev/null || true && \
     rm -rf /root/.android/cache/*
+
+# Google ships no linux-aarch64 NDK: on arm64, keep the NDK target files and
+# add a prebuilt/linux-aarch64 overlay whose <triple><api>-clang wrappers call
+# the distro clang/lld of the same LLVM major (NDK r29 = LLVM 21 = Ubuntu 26.04).
+COPY android-ndk-arm64-host.sh /opt/grcc/android-ndk-arm64-host.sh
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        sh /opt/grcc/android-ndk-arm64-host.sh $ANDROID_HOME/ndk/$NDK_VERSION; \
+    fi
 
 ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
 ENV ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$NDK_VERSION
@@ -176,12 +188,23 @@ ARG MACOSX_SDK_FILENAME=MacOSX$MACOSX_SDK_VERSION.sdk.tar.xz
 
 WORKDIR $MACOSX_BUILD_TOOLS_PATH
 
-RUN git clone https://github.com/tpoechtrager/osxcross
+# Pinned osxcross (master as of 2026-07-24). The "llvm" build flavor uses the
+# distro clang, llvm tools and ld64.lld instead of compiling cctools/ld64/TAPI,
+# which is the fragile part (notably on arm64 hosts); x86_64 and arm64 targets only.
+ARG OSXCROSS_COMMIT=27d21e4977c9751d01199c7a226a6faf494c3dd9
+RUN git clone https://github.com/tpoechtrager/osxcross && \
+    git -C osxcross checkout $OSXCROSS_COMMIT
 
 WORKDIR $OSXCROSS_PATH
 RUN wget -nc -nv $MACOSX_SDK_BASE_URL/$MACOSX_SDK_FILENAME
 RUN mv $MACOSX_SDK_FILENAME tarballs/
-RUN UNATTENDED=yes OSX_VERSION_MIN=11.0 TARGET_DIR=$MACOSX_CROSS_COMPILER_PATH ./build.sh 2>&1 | tee build.log
+# pipefail: without it the pipeline returns tee's status and a failed osxcross
+# build silently produces an image without macOS compilers.
+RUN bash -o pipefail -c "UNATTENDED=1 BUILD_FLAVOR=llvm OSX_VERSION_MIN=11.0 TARGET_DIR=$MACOSX_CROSS_COMPILER_PATH ./build.sh 2>&1 | tee build.log" && \
+    for tool in x86_64-apple-darwin25.1-clang aarch64-apple-darwin25.1-clang x86_64-apple-darwin25.1-lipo; do \
+        test -x $MACOSX_CROSS_COMPILER_PATH/bin/$tool || { echo "osxcross: missing $tool" >&2; exit 1; }; \
+    done && \
+    test -d $MACOSX_CROSS_COMPILER_PATH/SDK/MacOSX$MACOSX_SDK_VERSION.sdk/usr/include
 
 ENV PATH=$MACOSX_CROSS_COMPILER_PATH/bin:$PATH
 
@@ -226,6 +249,8 @@ ARG ANDROID_KEYSTORE_DIR=/root/.android
 WORKDIR $ANDROID_KEYSTORE_DIR
 RUN keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore debug.keystore -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
 
+# shutdown_adb_on_exit: no adb server in a container, and platform-tools adb is
+# x86_64-only (on arm64 the exit-time "adb kill-server" fails under Rosetta/QEMU).
 ARG GODOT_EDITOR_CONFIG_DIR=/root/.config/godot
 ARG GODOT_EDITOR_CONFIG_FILENAME=editor_settings-4.tres
 WORKDIR $GODOT_EDITOR_CONFIG_DIR
@@ -237,7 +262,8 @@ RUN JAVA_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "arm64"; else echo "am
     echo 'export/android/android_sdk_path = "/opt/android-build-tools/android-sdk"' >> $GODOT_EDITOR_CONFIG_FILENAME && \
     echo 'export/android/debug_keystore = "/root/.android/debug.keystore"' >> $GODOT_EDITOR_CONFIG_FILENAME && \
     echo 'export/android/debug_keystore_user = "androiddebugkey"' >> $GODOT_EDITOR_CONFIG_FILENAME && \
-    echo 'export/android/debug_keystore_pass = "android"' >> $GODOT_EDITOR_CONFIG_FILENAME
+    echo 'export/android/debug_keystore_pass = "android"' >> $GODOT_EDITOR_CONFIG_FILENAME && \
+    echo 'export/android/shutdown_adb_on_exit = false' >> $GODOT_EDITOR_CONFIG_FILENAME
 
 # =============================================================================
 # Stage: web - Emscripten + nightly Rust for wasm32-unknown-emscripten
@@ -283,10 +309,10 @@ COPY installer.nsi.template /opt/grcc/installer.nsi.template
 WORKDIR /build
 
 # Example usage:
-# docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler cargo build --release --target aarch64-linux-android
-# docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler cargo +nightly-2026-06-01 build -Zbuild-std --release --target wasm32-unknown-emscripten
+# docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler:0.3.1-amd64 cargo build --release --target aarch64-linux-android
+# docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler:0.3.1-amd64 cargo +nightly-2026-06-01 build -Zbuild-std --release --target wasm32-unknown-emscripten
 #
 # Using a cache:
 # install -d /tmp/.cargo/git
 # install -d /tmp/.cargo/registry
-# docker run -v $(pwd):/build -v /tmp/.cargo/git:/root/.cargo/git -v /tmp/.cargo/registry:/root/.cargo/registry ufoot/godot-rust-cross-compiler cargo build --release --target aarch64-linux-android
+# docker run -v $(pwd):/build -v /tmp/.cargo/git:/root/.cargo/git -v /tmp/.cargo/registry:/root/.cargo/registry ufoot/godot-rust-cross-compiler:0.3.1-amd64 cargo build --release --target aarch64-linux-android

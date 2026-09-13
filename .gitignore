@@ -64,3 +64,6 @@ logs
 godot/buildx2.sh
 godot/installer-build.sh
 godot/dmg-build.sh
+
+# crypto stuff
+*.idsig
