@@ -64,8 +64,8 @@ docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler \
 
 ```sh
 docker run -v $(pwd):/build \
-    -e CC=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23.5-clang \
-    -e C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include \
+    -e CC=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin25.1-clang \
+    -e C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX26.1.sdk/usr/include \
     ufoot/godot-rust-cross-compiler \
     cargo build --release --target aarch64-apple-darwin
 ```
@@ -73,10 +73,10 @@ docker run -v $(pwd):/build \
 Docker Image Details
 --------------------
 
-The image is based on **Ubuntu Noble (24.04)** and includes:
+The image is based on **Ubuntu Resolute (26.04)** and includes:
 
 ### Core Tools
-- Rust stable with the 10 native cross targets, plus Rust nightly with `rust-src` and `wasm32-unknown-emscripten`
+- Rust stable with the 10 native cross targets, plus Rust `nightly-2026-06-01` (pinned, see `GRCC_WASM_NIGHTLY`) with `rust-src` and `wasm32-unknown-emscripten`
 - [Emscripten](https://emscripten.org) 4.0.11 (the version Godot 4.7 web templates are built with)
 - GCC and Clang for native compilation
 - [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) for Windows cross-compilation (x86_64 and ARM64)
@@ -84,15 +84,15 @@ The image is based on **Ubuntu Noble (24.04)** and includes:
 - [binaryen](https://github.com/WebAssembly/binaryen) (`wasm-opt`) for WASM optimization
 
 ### Android SDK/NDK
-- Android SDK with platform-tools and build-tools 34.0.0
-- **Android NDK r27c (27.2.12479018)** - latest LTS, recommended by Godot 4.5+
-- Android API level 21 minimum
+- Android SDK with platform-tools, platform android-36 and build-tools 36.1.0
+- **Android NDK r29 (29.0.14206865)** - the version Godot 4.7 Android templates are built with
+- Android API level 24 minimum (Godot 4.7 `minSdk`)
 - [bundletool](https://github.com/google/bundletool) for AAB (Android App Bundle) support
 - Pre-configured debug keystore for development builds
 
 ### macOS Cross-Compilation
 - [osxcross](https://github.com/tpoechtrager/osxcross) cross-compiler
-- **macOS SDK 14.5** (supports both x86_64 and ARM64)
+- **macOS SDK 26.1** (supports both x86_64 and ARM64)
 - Minimum deployment target: macOS 11.0
 - `genisoimage` and `dmg` for creating DMG disk images
 
@@ -250,13 +250,13 @@ The Docker image pre-configures `~/.cargo/config.toml` with linkers for all targ
 
 ```toml
 [target.aarch64-linux-android]
-linker = "/opt/android-build-tools/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang"
+linker = "/opt/android-build-tools/android-sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
 
 [target.x86_64-apple-darwin]
-linker = "/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin23.5-clang"
+linker = "/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin25.1-clang"
 
 [target.aarch64-apple-darwin]
-linker = "/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23.5-clang"
+linker = "/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin25.1-clang"
 
 [target.x86_64-pc-windows-gnullvm]
 linker = "/opt/llvm-mingw/bin/x86_64-w64-mingw32-clang"
@@ -275,8 +275,8 @@ Some targets require environment variable overrides:
 
 | Target | Required Variables |
 |--------|-------------------|
-| macOS x64 | `CC=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin23.5-clang`<br>`C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include` |
-| macOS ARM64 | `CC=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin23.5-clang`<br>`C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include` |
+| macOS x64 | `CC=/opt/macosx-build-tools/cross-compiler/bin/x86_64-apple-darwin25.1-clang`<br>`C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX26.1.sdk/usr/include` |
+| macOS ARM64 | `CC=/opt/macosx-build-tools/cross-compiler/bin/aarch64-apple-darwin25.1-clang`<br>`C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX26.1.sdk/usr/include` |
 
 Android, Linux and Windows targets work without additional environment variables.
 
@@ -284,7 +284,7 @@ Android, Linux and Windows targets work without additional environment variables
 
 Web builds follow the [godot-rust web export guide](https://godot-rust.github.io/book/toolchain/export-web.html):
 
-- target `wasm32-unknown-emscripten`, built with `cargo +nightly build -Zbuild-std`
+- target `wasm32-unknown-emscripten`, built with `cargo +nightly-2026-06-01 build -Zbuild-std`
 - `emcc` on the `PATH`, same version as Godot's web templates (4.0.11 for Godot 4.7)
 - `grcc-lib-wasm` builds the crate twice, into separate target dirs:
   - threaded (`-C link-args=-pthread -C target-feature=+atomics`), copied as `lib.threads.wasm`
@@ -357,11 +357,11 @@ Make sure you're setting both `CC` and `C_INCLUDE_PATH` environment variables. T
 
 ### Android NDK version mismatch
 
-The image uses NDK r27c (27.2.12479018), which is the latest LTS version recommended by Godot 4.5+. Using a significantly older NDK version may cause linker errors.
+The image uses NDK r29 (29.0.14206865), the version Godot 4.7 is built against. Using a significantly older NDK version may cause linker errors.
 
 ### "TargetConditionals.h not found"
 
-You're missing the macOS SDK headers. Set `C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX14.5.sdk/usr/include`.
+You're missing the macOS SDK headers. Set `C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX26.1.sdk/usr/include`.
 
 ### Files owned by root
 

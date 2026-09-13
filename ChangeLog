@@ -3,6 +3,10 @@
 	* Version 0.3.1, Godot 4.7.2, pinned image tag in grcc.mk
 	(GRCC_DOCKER_IMAGE), overridable Godot command and preset names,
 	universal macOS dylib via lipo, native copy on arm64 Linux hosts.
+	macOS SDK 26.1 (darwin25.1), NDK r29 and API level 24 (as Godot 4.7),
+	llvm-mingw 20260908, bundletool 1.18.3, cmdline-tools 15859902,
+	image installs the pinned wasm nightly used by grcc.mk.
+	Base image Ubuntu 26.04 (resolute), JDK 17 only.
 
 2021-01-30  Christian Mauduit <ufoot@ufoot.org>
 

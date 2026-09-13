@@ -10,7 +10,7 @@
 # =============================================================================
 # Stage: base - System packages
 # =============================================================================
-FROM ubuntu:noble AS base
+FROM ubuntu:resolute AS base
 
 LABEL maintainer="Christian Mauduit <ufoot@ufoot.org>"
 ENV GRCC_VERSION=0.3.1
@@ -27,7 +27,7 @@ RUN apt-get install -yq \
     llvm-dev libclang-dev clang \
     libncurses-dev \
     libxml2-dev zlib1g-dev \
-    ca-certificates default-jre-headless \
+    ca-certificates \
     xvfb \
     gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
     gcc-x86-64-linux-gnu g++-x86-64-linux-gnu \
@@ -44,7 +44,7 @@ FROM base AS android
 
 ARG ANDROID_BUILD_TOOLS_PATH=/opt/android-build-tools
 ARG ANDROID_BASE_URL=https://dl.google.com/android/repository
-ARG ANDROID_CMDLINE_TOOLS_VERSION=11076708
+ARG ANDROID_CMDLINE_TOOLS_VERSION=15859902
 ARG ANDROID_CMDLINE_TOOLS_FILENAME=commandlinetools-linux-${ANDROID_CMDLINE_TOOLS_VERSION}_latest.zip
 ARG ANDROID_CMDLINE_TOOLS_URL=$ANDROID_BASE_URL/$ANDROID_CMDLINE_TOOLS_FILENAME
 
@@ -54,7 +54,8 @@ ENV ANDROID_SDK_ROOT=$ANDROID_HOME
 WORKDIR $ANDROID_BUILD_TOOLS_PATH
 
 ARG TARGETARCH
-ARG NDK_VERSION=27.2.12479018
+# Keep in sync with get_ndk_version() in godot platform/android/detect.py
+ARG NDK_VERSION=29.0.14206865
 
 RUN wget -nc -nv $ANDROID_CMDLINE_TOOLS_URL && \
     unzip -q $ANDROID_CMDLINE_TOOLS_FILENAME && \
@@ -74,10 +75,10 @@ RUN wget -nc -nv $ANDROID_CMDLINE_TOOLS_URL && \
     rm -rf /root/.android/cache/*
 
 ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-ENV ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.2.12479018
+ENV ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$NDK_VERSION
 ENV NDK_HOME=$ANDROID_NDK_ROOT
 
-ARG BUNDLETOOL_VERSION=1.17.2
+ARG BUNDLETOOL_VERSION=1.18.3
 RUN wget -nc -nv https://github.com/google/bundletool/releases/download/$BUNDLETOOL_VERSION/bundletool-all-$BUNDLETOOL_VERSION.jar -O /opt/bundletool.jar
 
 # =============================================================================
@@ -104,8 +105,9 @@ RUN rustup target add \
 
 RUN mkdir -p /root/.cargo/git /root/.cargo/registry
 
-ARG ANDROID_API_LEVEL=21
-ARG NDK_VERSION=27.2.12479018
+# minSdk of Godot 4.7 Android templates (platform/android/java/app/config.gradle)
+ARG ANDROID_API_LEVEL=24
+ARG NDK_VERSION=29.0.14206865
 
 RUN NDK_HOST=$(if [ "$TARGETARCH" = "arm64" ]; then echo "linux-aarch64"; else echo "linux-x86_64"; fi) && \
     NDK_TOOLCHAIN="$ANDROID_HOME/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/$NDK_HOST/bin" && \
@@ -137,13 +139,13 @@ RUN NDK_HOST=$(if [ "$TARGETARCH" = "arm64" ]; then echo "linux-aarch64"; else e
 FROM rust AS windows-cross
 
 ARG TARGETARCH
-ARG LLVM_MINGW_VERSION=20241119
+ARG LLVM_MINGW_VERSION=20260908
 RUN LLVM_HOST_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "aarch64"; else echo "x86_64"; fi) && \
-    LLVM_MINGW_URL="https://github.com/mstorsjo/llvm-mingw/releases/download/$LLVM_MINGW_VERSION/llvm-mingw-$LLVM_MINGW_VERSION-ucrt-ubuntu-20.04-$LLVM_HOST_ARCH.tar.xz" && \
+    LLVM_MINGW_URL="https://github.com/mstorsjo/llvm-mingw/releases/download/$LLVM_MINGW_VERSION/llvm-mingw-$LLVM_MINGW_VERSION-ucrt-ubuntu-22.04-$LLVM_HOST_ARCH.tar.xz" && \
     wget -nc -nv $LLVM_MINGW_URL -O /tmp/llvm-mingw.tar.xz && \
     tar -xf /tmp/llvm-mingw.tar.xz -C /opt && \
     rm /tmp/llvm-mingw.tar.xz && \
-    mv /opt/llvm-mingw-$LLVM_MINGW_VERSION-ucrt-ubuntu-20.04-$LLVM_HOST_ARCH /opt/llvm-mingw && \
+    mv /opt/llvm-mingw-$LLVM_MINGW_VERSION-ucrt-ubuntu-22.04-$LLVM_HOST_ARCH /opt/llvm-mingw && \
     rm -rf /opt/llvm-mingw/i686-w64-mingw32 && \
     rm -rf /opt/llvm-mingw/armv7-w64-mingw32 && \
     find /opt/llvm-mingw/lib -name '*i686*' -delete 2>/dev/null || true && \
@@ -167,8 +169,9 @@ ARG MACOSX_BUILD_TOOLS_PATH=/opt/macosx-build-tools
 ARG OSXCROSS_PATH=$MACOSX_BUILD_TOOLS_PATH/osxcross
 ARG MACOSX_CROSS_COMPILER_PATH=$MACOSX_BUILD_TOOLS_PATH/cross-compiler
 
-ARG MACOSX_SDK_BASE_URL=https://github.com/joseluisq/macosx-sdks/releases/download/14.5
-ENV MACOSX_SDK_VERSION=14.5
+# SDK version drives the osxcross triple (26.1 -> darwin25.1), which grcc.mk hardcodes.
+ENV MACOSX_SDK_VERSION=26.1
+ARG MACOSX_SDK_BASE_URL=https://github.com/joseluisq/macosx-sdks/releases/download/$MACOSX_SDK_VERSION
 ARG MACOSX_SDK_FILENAME=MacOSX$MACOSX_SDK_VERSION.sdk.tar.xz
 
 WORKDIR $MACOSX_BUILD_TOOLS_PATH
@@ -183,10 +186,10 @@ RUN UNATTENDED=yes OSX_VERSION_MIN=11.0 TARGET_DIR=$MACOSX_CROSS_COMPILER_PATH .
 ENV PATH=$MACOSX_CROSS_COMPILER_PATH/bin:$PATH
 
 RUN echo "[target.x86_64-apple-darwin]" >> /root/.cargo/config.toml && \
-    echo "linker = \"$MACOSX_CROSS_COMPILER_PATH/bin/x86_64-apple-darwin23.5-clang\"" >> /root/.cargo/config.toml && \
+    echo "linker = \"$MACOSX_CROSS_COMPILER_PATH/bin/x86_64-apple-darwin25.1-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml && \
     echo "[target.aarch64-apple-darwin]" >> /root/.cargo/config.toml && \
-    echo "linker = \"$MACOSX_CROSS_COMPILER_PATH/bin/aarch64-apple-darwin23.5-clang\"" >> /root/.cargo/config.toml && \
+    echo "linker = \"$MACOSX_CROSS_COMPILER_PATH/bin/aarch64-apple-darwin25.1-clang\"" >> /root/.cargo/config.toml && \
     echo "" >> /root/.cargo/config.toml
 
 # =============================================================================
@@ -255,7 +258,10 @@ RUN git clone --depth 1 https://github.com/emscripten-core/emsdk.git $EMSDK && \
 
 ENV PATH=$EMSDK:$EMSDK/upstream/emscripten:$PATH
 
-RUN rustup toolchain install nightly --profile minimal --component rust-src --target wasm32-unknown-emscripten
+# Must match GRCC_WASM_NIGHTLY in grcc.mk: -Zemscripten-wasm-eh=false was removed
+# from later nightlies and Godot web templates still use JS exception handling.
+ARG RUST_WASM_NIGHTLY=nightly-2026-06-01
+RUN rustup toolchain install $RUST_WASM_NIGHTLY --profile minimal --component rust-src --target wasm32-unknown-emscripten
 
 # Flags shared by threaded and nothreads builds; grcc.mk adds -pthread/+atomics
 # through RUSTFLAGS for the threaded variant (RUSTFLAGS overrides this list).
@@ -278,7 +284,7 @@ WORKDIR /build
 
 # Example usage:
 # docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler cargo build --release --target aarch64-linux-android
-# docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler cargo +nightly build -Zbuild-std --release --target wasm32-unknown-emscripten
+# docker run -v $(pwd):/build ufoot/godot-rust-cross-compiler cargo +nightly-2026-06-01 build -Zbuild-std --release --target wasm32-unknown-emscripten
 #
 # Using a cache:
 # install -d /tmp/.cargo/git
