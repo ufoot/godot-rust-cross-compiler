@@ -207,6 +207,8 @@ RUN bash -o pipefail -c "UNATTENDED=1 BUILD_FLAVOR=llvm OSX_VERSION_MIN=11.0 TAR
     test -d $MACOSX_CROSS_COMPILER_PATH/SDK/MacOSX$MACOSX_SDK_VERSION.sdk/usr/include
 
 ENV PATH=$MACOSX_CROSS_COMPILER_PATH/bin:$PATH
+# rustc looks up the SDK for Apple targets through xcrun unless SDKROOT is set.
+ENV SDKROOT=$MACOSX_CROSS_COMPILER_PATH/SDK/MacOSX$MACOSX_SDK_VERSION.sdk
 
 RUN echo "[target.x86_64-apple-darwin]" >> /root/.cargo/config.toml && \
     echo "linker = \"$MACOSX_CROSS_COMPILER_PATH/bin/x86_64-apple-darwin25.1-clang\"" >> /root/.cargo/config.toml && \

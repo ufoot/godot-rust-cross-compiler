@@ -14,6 +14,11 @@
 	toy export_presets.cfg numbering gap (Godot stops at first missing index).
 	Android release signing via GODOT_ANDROID_KEYSTORE_RELEASE_* (default:
 	image debug keystore); editor no longer runs x86 adb kill-server on exit.
+	osxcross pinned, "llvm" flavor (distro clang + ld64.lld), build failures
+	no longer hidden by tee; SDKROOT set for rustc.
+	Toy project imports both S3TC/BPTC and ETC2/ASTC (exports from either arch).
+	Toy crates enable godot experimental-wasm, required for any wasm build.
+	Windows installers: makensis -NOCD so project-relative paths resolve.
 
 2021-01-30  Christian Mauduit <ufoot@ufoot.org>
 

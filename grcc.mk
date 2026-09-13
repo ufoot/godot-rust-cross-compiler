@@ -494,12 +494,14 @@ grcc-pkg-source: .git/config grcc-clean-prepare
 
 grcc-installer-windows: grcc-installer-windows-x64 grcc-installer-windows-arm64
 
+# makensis resolves relative paths from the .nsi directory (/opt/grcc) unless
+# -NOCD is given; all paths passed below are relative to the project root.
 GRCC_INSTALLER_BUILDSCRIPT=godot/installer-build.sh
 
 grcc-installer-windows-x64: grcc-pkg-windows-x64
 	install -d $(GRCC_EXPORT_DIR)
 	cd $(GRCC_EXPORT_DIR) && unzip -o $(GRCC_EXPORT_WINDOWS_X64_PKG).zip
-	echo 'makensis -DGAME_NAME="$(GRCC_GAME_PKG_NAME)" \
+	echo 'makensis -NOCD -DGAME_NAME="$(GRCC_GAME_PKG_NAME)" \
 		-DGAME_VERSION="$(GRCC_GAME_PKG_VERSION)" \
 		-DGAME_PUBLISHER="$(GRCC_GAME_PUBLISHER)" \
 		-DEXE_FILE="$(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_X64_PKG)/$(GRCC_GAME_PKG_NAME).exe" \
@@ -513,7 +515,7 @@ grcc-installer-windows-x64: grcc-pkg-windows-x64
 grcc-installer-windows-arm64: grcc-pkg-windows-arm64
 	install -d $(GRCC_EXPORT_DIR)
 	cd $(GRCC_EXPORT_DIR) && unzip -o $(GRCC_EXPORT_WINDOWS_ARM64_PKG).zip
-	echo 'makensis -DGAME_NAME="$(GRCC_GAME_PKG_NAME)" \
+	echo 'makensis -NOCD -DGAME_NAME="$(GRCC_GAME_PKG_NAME)" \
 		-DGAME_VERSION="$(GRCC_GAME_PKG_VERSION)" \
 		-DGAME_PUBLISHER="$(GRCC_GAME_PUBLISHER)" \
 		-DEXE_FILE="$(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_ARM64_PKG)/$(GRCC_GAME_PKG_NAME).exe" \

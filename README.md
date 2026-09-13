@@ -104,7 +104,8 @@ The image is based on **Ubuntu Resolute (26.04)** and includes:
 - Pre-configured debug keystore for development builds
 
 ### macOS Cross-Compilation
-- [osxcross](https://github.com/tpoechtrager/osxcross) cross-compiler
+- [osxcross](https://github.com/tpoechtrager/osxcross) cross-compiler, `llvm` flavor (Ubuntu clang, llvm tools and `ld64.lld`; no cctools/ld64 build), same on amd64 and arm64
+- `SDKROOT` points at the SDK so rustc does not try `xcrun`
 - **macOS SDK 26.1** (supports both x86_64 and ARM64)
 - Minimum deployment target: macOS 11.0
 - `genisoimage` and `dmg` for creating DMG disk images
@@ -307,12 +308,17 @@ Web builds follow the [godot-rust web export guide](https://godot-rust.github.io
 - `grcc-lib-wasm` builds the crate twice, into separate target dirs:
   - threaded (`-C link-args=-pthread -C target-feature=+atomics`), copied as `lib.threads.wasm`
   - nothreads (`--features nothreads`), copied as `lib.wasm`
-- your GDExtension crate must declare
+- every crate depending on `godot` must enable `experimental-wasm` (an empty
+  opt-in flag, harmless on other targets; `experimental-wasm-nothreads` does
+  not imply it), and your GDExtension crate must declare `nothreads`:
   ```toml
+  [dependencies]
+  godot = { version = "0.5.5", features = ["experimental-wasm"] }
+
   [features]
   nothreads = ["godot/experimental-wasm-nothreads"]
   ```
-  (forward it to other workspace crates that depend on `godot`)
+  (forward `nothreads` to other workspace crates that depend on `godot`)
 - the Web export preset needs *Extensions Support* on. With *Thread Support*
   off (recommended) the game runs on any static host; with it on, the server
   must send cross-origin isolation headers (itch.io does).
@@ -380,6 +386,19 @@ The image uses NDK r29 (29.0.14206865), the version Godot 4.7 is built against. 
 ### "TargetConditionals.h not found"
 
 You're missing the macOS SDK headers. Set `C_INCLUDE_PATH=/opt/macosx-build-tools/cross-compiler/SDK/MacOSX26.1.sdk/usr/include`.
+
+### "Cannot export for universal or x86_64 if S3TC BPTC texture format is disabled"
+
+Godot only imports the VRAM texture format preferred by the machine running the
+editor unless told otherwise: the arm64 image cannot export macOS/Windows/Linux
+x86_64, the amd64 image cannot export Android. Enable both in `project.godot`:
+
+```ini
+[rendering]
+
+textures/vram_compression/import_s3tc_bptc=true
+textures/vram_compression/import_etc2_astc=true
+```
 
 ### Files owned by root
 
