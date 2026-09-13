@@ -321,6 +321,14 @@ RUN echo $GRCC_VERSION > godot-rust-cross-compiler.txt
 RUN mkdir -p /opt/grcc
 COPY installer.nsi.template /opt/grcc/installer.nsi.template
 
+# tini (-g: signal the whole process group, so Ctrl-C reaches cargo/godot) runs
+# entrypoint.sh, which gives root-owned files under /build back to the host user.
+RUN apt-get update && apt-get install -yq tini && apt-get clean
+COPY entrypoint.sh /opt/grcc/entrypoint.sh
+ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/opt/grcc/entrypoint.sh"]
+# Setting ENTRYPOINT clears the CMD inherited from ubuntu.
+CMD ["bash"]
+
 WORKDIR /build
 
 # Example usage:

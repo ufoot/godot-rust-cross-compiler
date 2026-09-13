@@ -402,7 +402,16 @@ textures/vram_compression/import_etc2_astc=true
 
 ### Files owned by root
 
-Docker runs as root, so generated files may be owned by root on your host. Use `sudo chown -R $(whoami) .` or run Docker with `--user $(id -u):$(id -g)`.
+Commands in the image run as root. On Linux hosts the image entrypoint hands
+files created under `/build` back to the owner of the mounted directory once the
+command ends, so `make clean` works without sudo. Files left by older images (or
+by a killed container) can be fixed with:
+
+```sh
+docker run --rm -v $(pwd):/build ufoot/godot-rust-cross-compiler:0.3.1-amd64 true
+```
+
+(use the `-arm64` tag on arm64; `true` does nothing, the entrypoint fixes ownership).
 
 Migration from Godot 3
 ----------------------

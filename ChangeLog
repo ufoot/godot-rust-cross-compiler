@@ -21,6 +21,8 @@
 	Windows installers: makensis -NOCD so project-relative paths resolve.
 	Image builds libdmg-hfsplus (Mozilla fork) for grcc-dmg-macosx, which
 	now calls "dmg dmg".
+	Entrypoint (tini + entrypoint.sh) gives root-owned files under /build
+	back to the host user on Linux.
 
 2021-01-30  Christian Mauduit <ufoot@ufoot.org>
 
