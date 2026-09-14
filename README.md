@@ -224,6 +224,7 @@ Set these in your Makefile *before* `include grcc.mk`:
 |----------|---------|---------|
 | `GRCC_DOCKER_ARCH` | `arm64` on aarch64/arm64 hosts, else `amd64` | image flavor; set `amd64` on an arm64 host to force emulation |
 | `GRCC_DOCKER_VERSION` | `0.3.1` | image version |
+| `GRCC_AAB_EMULATE` | `yes` | on arm64 hosts, run the AAB export in the emulated amd64 image; `no` skips the AAB |
 | `GRCC_DOCKER_IMAGE` | `ufoot/godot-rust-cross-compiler:$(GRCC_DOCKER_VERSION)-$(GRCC_DOCKER_ARCH)` | image used for cross builds and exports |
 | `GRCC_GODOT_HEADLESS` | `godot --headless` | Godot command used for exports |
 | `GRCC_EXPORT_PRESET_WINDOWS_X64` … `_LINUX_ARM64` | `Windows Desktop x64`, `Windows Desktop arm64`, `Android`, `macOS`, `Linux x64`, `Linux arm64` | export preset names |
@@ -386,9 +387,14 @@ devices receive.
   Without the password the debug key is used, and the AAB is left unsigned
   (`CN=Android Debug` certificates are rejected by Play). `make grcc-check-android-signing`
   prints which key applies.
-- Gradle's `aapt2` exists for x86_64 Linux only: AAB targets need the amd64
-  image (`GRCC_DOCKER_ARCH=amd64` on arm64 hosts, emulated). `grcc-pkg-all`
-  includes the AAB only on amd64.
+- Gradle's `aapt2` exists for x86_64 Linux only, so the AAB export step always
+  runs in the amd64 image: natively on amd64 hosts, **emulated by default on
+  arm64 hosts** (Docker Desktop with Rosetta on macOS; on Linux arm64, QEMU
+  binfmt must be installed). Only that step is emulated: Android libraries and
+  signing stay native, plus a Linux x86_64 build of your library for the
+  emulated editor. The `…-amd64` image must be available (pushed or
+  `docker load`ed). `GRCC_AAB_EMULATE=no` disables the emulation, and the AAB
+  is then skipped with a notice.
 - The Gradle home is cached in `target/cross-compiler-cache/gradle`; the first
   build downloads Gradle and its dependencies (network needed).
 

@@ -30,6 +30,8 @@
 	the environment, else project debug key); excluded from source packages.
 	grcc-pkg-source also excludes *.keystore/*.jks, target/ caches and the
 	Gradle template, and fails if a key file still ends up in the archive.
+	On arm64 hosts the AAB export runs in the emulated amd64 image by default
+	(GRCC_AAB_EMULATE=no to skip); explicit notice when no AAB is built.
 
 2021-01-30  Christian Mauduit <ufoot@ufoot.org>
 

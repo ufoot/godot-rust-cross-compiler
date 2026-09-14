@@ -84,9 +84,7 @@ grcc-native: grcc-test grcc-debug grcc-copy-local
 grcc-cross: grcc-test grcc-lib-all grcc-copy-if-exists
 
 grcc-export: grcc-test grcc-pkg-all grcc-installer-windows grcc-dmg-macosx
-ifneq (amd64,$(GRCC_DOCKER_ARCH))
-	@echo "$$GRCC_AAB_SKIPPED_NOTICE"
-endif
+	@$(if $(filter yes,$(GRCC_AAB_POSSIBLE)),true,echo "$$GRCC_AAB_SKIPPED_NOTICE")
 
 grcc-lib-all: grcc-lib-windows grcc-lib-android grcc-lib-macosx grcc-lib-linux grcc-lib-wasm
 
@@ -201,8 +199,9 @@ ifeq (,$(wildcard /opt/godot-rust-cross-compiler.txt))
 GRCC_USE_DOCKER=yes
 GRCC_INVOKE_DOCKER_RUST=install -d $(GRCC_CROSS_COMPILER_CACHE_DIR)/git && install -d $(GRCC_CROSS_COMPILER_CACHE_DIR)/registry && docker run --platform linux/$(GRCC_DOCKER_ARCH) -v $$(pwd):/build -v$$(realpath $(GRCC_CROSS_COMPILER_CACHE_DIR)/git):/root/.cargo/git -v$$(realpath $(GRCC_CROSS_COMPILER_CACHE_DIR)/registry):/root/.cargo/registry
 GRCC_INVOKE_DOCKER_GODOT_EXPORT=docker run --platform linux/$(GRCC_DOCKER_ARCH) -v $$(pwd):/build $(GRCC_DOCKER_SIGNING_ENV) $(GRCC_DOCKER_IMAGE)
-# Same, plus a persistent Gradle home (wrapper distribution + Maven dependencies).
-GRCC_INVOKE_DOCKER_GODOT_GRADLE=install -d $(GRCC_CROSS_COMPILER_CACHE_DIR)/gradle && docker run --platform linux/$(GRCC_DOCKER_ARCH) -v $$(pwd):/build -v$$(realpath $(GRCC_CROSS_COMPILER_CACHE_DIR)/gradle):/root/.gradle $(GRCC_DOCKER_SIGNING_ENV) $(GRCC_DOCKER_IMAGE)
+# Same, plus a persistent Gradle home (wrapper distribution + Maven dependencies),
+# on the image chosen for AABs (see GRCC_AAB_EMULATE).
+GRCC_INVOKE_DOCKER_GODOT_GRADLE=install -d $(GRCC_CROSS_COMPILER_CACHE_DIR)/gradle && docker run --platform linux/$(GRCC_AAB_DOCKER_ARCH) -v $$(pwd):/build -v$$(realpath $(GRCC_CROSS_COMPILER_CACHE_DIR)/gradle):/root/.gradle $(GRCC_DOCKER_SIGNING_ENV) $(GRCC_AAB_DOCKER_IMAGE)
 else
 GRCC_USE_DOCKER=no
 GRCC_INVOKE_DOCKER_GODOT_EXPORT=
@@ -210,9 +209,39 @@ GRCC_INVOKE_DOCKER_GODOT_GRADLE=
 endif
 
 # Google Play needs an Android App Bundle, built by Godot's Gradle template.
-# Gradle's aapt2 only exists for x86_64 Linux, so the AAB is built with the
-# amd64 image only (on arm64 hosts: GRCC_DOCKER_ARCH=amd64, emulated).
-ifeq (amd64,$(GRCC_DOCKER_ARCH))
+# Gradle's aapt2 only exists for x86_64 Linux, so the AAB export always runs in
+# the amd64 image: natively on amd64 hosts, emulated (Rosetta/QEMU) on arm64
+# hosts. Only that export step is emulated; libraries and signing stay native.
+# GRCC_AAB_EMULATE=no keeps arm64 hosts native, which skips the AAB.
+GRCC_AAB_EMULATE?=yes
+ifeq (yes,$(GRCC_AAB_EMULATE))
+GRCC_AAB_DOCKER_ARCH=amd64
+else
+GRCC_AAB_DOCKER_ARCH=$(GRCC_DOCKER_ARCH)
+endif
+ifeq ($(GRCC_AAB_DOCKER_ARCH),$(GRCC_DOCKER_ARCH))
+GRCC_AAB_DOCKER_IMAGE?=$(GRCC_DOCKER_IMAGE)
+else
+GRCC_AAB_DOCKER_IMAGE?=ufoot/godot-rust-cross-compiler:$(GRCC_DOCKER_VERSION)-$(GRCC_AAB_DOCKER_ARCH)
+endif
+# The editor running the AAB export loads the GDExtension for its own arch.
+ifeq (amd64,$(GRCC_AAB_DOCKER_ARCH))
+GRCC_AAB_EDITOR_LIB=grcc-copy-linux-x64
+else
+GRCC_AAB_EDITOR_LIB=grcc-copy-linux-arm64
+endif
+# Possible when the export runs in an amd64 container, or directly on an amd64
+# image (no Docker switch is possible from inside an image).
+ifeq (amd64,$(GRCC_AAB_DOCKER_ARCH))
+ifeq (yes,$(GRCC_USE_DOCKER))
+GRCC_AAB_POSSIBLE=yes
+else
+GRCC_AAB_POSSIBLE=$(if $(filter amd64,$(GRCC_DOCKER_ARCH)),yes,no)
+endif
+else
+GRCC_AAB_POSSIBLE=no
+endif
+ifeq (yes,$(GRCC_AAB_POSSIBLE))
 GRCC_PKG_ANDROID_AAB=grcc-sign-android-aab
 else
 GRCC_PKG_ANDROID_AAB=grcc-skip-android-aab
@@ -541,41 +570,38 @@ grcc-pkg-android: grcc-check-android-signing grcc-copy-android $(GRCC_COPY_EDITO
 	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_ANDROID)" $(GRCC_EXPORT_ANDROID_PKG).apk ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
 	install -d $(GRCC_EXPORT_DIR) && mv godot/$(GRCC_EXPORT_ANDROID_PKG).apk $(GRCC_EXPORT_DIR)
 
-define GRCC_AAB_ARM64_HOST_ERROR
+define GRCC_AAB_UNAVAILABLE
 
-ERROR: Android App Bundles need the amd64 image.
-
-Godot's Gradle build uses aapt2, which Google only ships for x86_64 Linux.
-Run the AAB targets with the emulated amd64 image:
-
-  make grcc-sign-android-aab GRCC_DOCKER_ARCH=amd64
+Android App Bundles (.aab) need the amd64 image (Gradle's aapt2 is x86_64-only)
+and this build would run the AAB export on $(GRCC_AAB_DOCKER_ARCH)
+(GRCC_AAB_EMULATE=$(GRCC_AAB_EMULATE), Docker: $(GRCC_USE_DOCKER)).
+Use the default GRCC_AAB_EMULATE=yes with Docker, or build on an amd64 host.
 
 endef
-export GRCC_AAB_ARM64_HOST_ERROR
+export GRCC_AAB_UNAVAILABLE
 
 define GRCC_AAB_SKIPPED_NOTICE
 
-NOTICE: no Android App Bundle (.aab) was built: it needs the amd64 image and
-this host uses the $(GRCC_DOCKER_ARCH) one. For Google Play, run (emulated):
-
-  make grcc-sign-android-aab GRCC_DOCKER_ARCH=amd64
-
+NOTICE: no Android App Bundle (.aab) was built.$(GRCC_AAB_UNAVAILABLE)
 endef
 export GRCC_AAB_SKIPPED_NOTICE
 
-# In grcc-pkg-all on non-amd64 hosts, instead of silently leaving the AAB out.
+# In grcc-pkg-all when no AAB can be built, instead of silently leaving it out.
 grcc-skip-android-aab:
 	@echo "$$GRCC_AAB_SKIPPED_NOTICE"
 
 grcc-check-aab-host:
-ifeq (arm64,$(GRCC_DOCKER_ARCH))
-	@echo "$$GRCC_AAB_ARM64_HOST_ERROR"
+ifneq (yes,$(GRCC_AAB_POSSIBLE))
+	@echo "ERROR: $$GRCC_AAB_UNAVAILABLE" >&2
 	@exit 1
+endif
+ifneq ($(GRCC_AAB_DOCKER_ARCH),$(GRCC_DOCKER_ARCH))
+	@echo "grcc: AAB export runs in the emulated $(GRCC_AAB_DOCKER_ARCH) image $(GRCC_AAB_DOCKER_IMAGE) (slow; GRCC_AAB_EMULATE=no to disable)"
 endif
 
 # Unsigned AAB: Godot's Gradle build (template reinstalled on each export so it
 # always matches the image's Godot), then checked with bundletool.
-grcc-pkg-android-aab: grcc-check-aab-host grcc-check-android-signing grcc-copy-android $(GRCC_COPY_EDITOR_LIB)
+grcc-pkg-android-aab: grcc-check-aab-host grcc-check-android-signing grcc-copy-android $(GRCC_AAB_EDITOR_LIB)
 	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED) godot/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED)
 	echo 'set -e ; for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --install-android-build-template --export-release "$(GRCC_EXPORT_PRESET_ANDROID_AAB)" $(GRCC_EXPORT_ANDROID_AAB_UNSIGNED) || test $$i = warmup ; done ; java -jar /opt/bundletool.jar validate --bundle=godot/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED)' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_GRADLE) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
 	install -d $(GRCC_EXPORT_DIR) && mv godot/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED) $(GRCC_EXPORT_DIR)
