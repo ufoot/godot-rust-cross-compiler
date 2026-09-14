@@ -201,6 +201,7 @@ export: grcc-export
 | `make cross` | Build for all cross-compilation targets |
 | `make export` | Build and export packages for all platforms |
 | `make test` | Run Rust tests |
+| `make grcc-sign-android-aab` | Google Play bundle: unsigned AAB via Gradle, then upload-key signature (amd64 image) |
 | `make clean` | Clean all build artifacts |
 
 ### Individual Platform Targets
@@ -227,7 +228,10 @@ Set these in your Makefile *before* `include grcc.mk`:
 | `GRCC_GODOT_HEADLESS` | `godot --headless` | Godot command used for exports |
 | `GRCC_EXPORT_PRESET_WINDOWS_X64` … `_LINUX_ARM64` | `Windows Desktop x64`, `Windows Desktop arm64`, `Android`, `macOS`, `Linux x64`, `Linux arm64` | export preset names |
 | `GRCC_GAME_PUBLISHER` | `Unknown Publisher` | NSIS installer publisher |
-| `GODOT_ANDROID_KEYSTORE_RELEASE_PATH` / `_USER` / `_PASSWORD` | image debug keystore (`/root/.android/debug.keystore`, `androiddebugkey`, `android`) | Android release signing; path as seen in the container (project is `/build`). Also read from the environment, passed to Docker by name |
+| `GRCC_KEYSTORE_DIR` | `.keystore` | project directory holding signing keys (keep it git-ignored; excluded from source packages, untouched by `make clean`) |
+| `GRCC_ANDROID_DEBUG_KEYSTORE` | `$(GRCC_KEYSTORE_DIR)/debug.keystore` | debug key (`androiddebugkey`/`android`); falls back to the image's own if missing |
+| `GRCC_ANDROID_RELEASE_KEYSTORE` | `$(GRCC_KEYSTORE_DIR)/release.keystore` | release/upload key, used only when `GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD` is set (environment only) and `GRCC_ANDROID_RELEASE_KEYSTORE_USER` gives the alias |
+| `GODOT_ANDROID_KEYSTORE_{RELEASE,DEBUG}_{PATH,USER,PASSWORD}` | computed from the above | what Godot reads; set them yourself to bypass the logic (paths as seen in the container, project on `/build`) |
 
 ### macOS universal library
 
@@ -366,7 +370,29 @@ The `make export` target creates distribution-ready packages:
 | Web | `export/mygame-web-v1.0.0.zip` | HTML5/WASM package |
 | Source | `export/mygame-1.0.0.tar.gz` | Source tarball |
 
-**Note**: by default Android APKs are signed with the image's debug keystore. For store releases, keep your keystore in the project (or mount it) and set `GODOT_ANDROID_KEYSTORE_RELEASE_PATH=/build/<path>`, `GODOT_ANDROID_KEYSTORE_RELEASE_USER` and `GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD` in your environment.
+### Google Play (Android App Bundle)
+
+Play takes an AAB, not an APK. `grcc-pkg-android-aab` exports
+`export/<game>-android-v<version>-unsigned.aab` with an **"Android AAB"** preset
+(*Use Gradle Build* on, *Export Format* AAB, *Signed* off), reinstalling Godot's
+Android build template on each export (`godot/android/`, keep it git-ignored),
+then checks it with `bundletool validate`. `grcc-sign-android-aab` adds the
+**upload signature** with `jarsigner`, producing
+`export/<game>-android-v<version>.aab`; Google Play App Signing then signs what
+devices receive.
+
+- Signing uses the release keystore (`.keystore/release.keystore` by default):
+  `GRCC_ANDROID_RELEASE_KEYSTORE_USER=<alias> GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD=... make grcc-sign-android-aab`.
+  Without the password the debug key is used, and the AAB is left unsigned
+  (`CN=Android Debug` certificates are rejected by Play). `make grcc-check-android-signing`
+  prints which key applies.
+- Gradle's `aapt2` exists for x86_64 Linux only: AAB targets need the amd64
+  image (`GRCC_DOCKER_ARCH=amd64` on arm64 hosts, emulated). `grcc-pkg-all`
+  includes the AAB only on amd64.
+- The Gradle home is cached in `target/cross-compiler-cache/gradle`; the first
+  build downloads Gradle and its dependencies (network needed).
+
+**Note**: Android APKs are signed with the release keystore when its password is set, else with the project (or image) debug keystore. In CI, write the keystore from a protected variable into `.keystore/` and set the password variables as protected variables too.
 
 Troubleshooting
 ---------------

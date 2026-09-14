@@ -8,6 +8,12 @@ GRCC_GAME_REPO_NAME=godot-rust-cross-compiler
 # publisher name for Windows installers
 GRCC_GAME_PUBLISHER=ufoot
 
+# Android signing keys (git-ignored). The release key is used only when its
+# password is in the environment: GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD=...
+GRCC_ANDROID_DEBUG_KEYSTORE=.keystore/godot-debug.keystore
+GRCC_ANDROID_RELEASE_KEYSTORE=.keystore/ufoot.keystore
+# Key alias inside ufoot.keystore (not secret)
+GRCC_ANDROID_RELEASE_KEYSTORE_USER=upload
 include grcc.mk
 
 all: grcc-all

@@ -64,6 +64,11 @@
 .PHONY: grcc-installer-windows-x64
 .PHONY: grcc-installer-windows-arm64
 .PHONY: grcc-pkg-android
+.PHONY: grcc-pkg-android-aab
+.PHONY: grcc-sign-android-aab
+.PHONY: grcc-check-aab-host
+.PHONY: grcc-skip-android-aab
+.PHONY: grcc-check-android-signing
 .PHONY: grcc-pkg-macosx
 .PHONY: grcc-pkg-linux
 .PHONY: grcc-pkg-linux-x64
@@ -79,6 +84,9 @@ grcc-native: grcc-test grcc-debug grcc-copy-local
 grcc-cross: grcc-test grcc-lib-all grcc-copy-if-exists
 
 grcc-export: grcc-test grcc-pkg-all grcc-installer-windows grcc-dmg-macosx
+ifneq (amd64,$(GRCC_DOCKER_ARCH))
+	@echo "$$GRCC_AAB_SKIPPED_NOTICE"
+endif
 
 grcc-lib-all: grcc-lib-windows grcc-lib-android grcc-lib-macosx grcc-lib-linux grcc-lib-wasm
 
@@ -127,14 +135,56 @@ endif
 GRCC_DOCKER_VERSION?=0.3.1
 GRCC_DOCKER_IMAGE?=ufoot/godot-rust-cross-compiler:$(GRCC_DOCKER_VERSION)-$(GRCC_DOCKER_ARCH)
 
-# Android release signing, read by Godot from the environment (passed to Docker
-# by name, so values are not echoed). Defaults to the debug keystore baked into
-# the image: fine for testing, not for store uploads. For a real key, set these
-# in the environment or before the include; the path is seen from inside the
-# container, where the project is mounted on /build.
-export GODOT_ANDROID_KEYSTORE_RELEASE_PATH?=/root/.android/debug.keystore
-export GODOT_ANDROID_KEYSTORE_RELEASE_USER?=androiddebugkey
-export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD?=android
+# Android signing keys live in the project, outside export/ (removed by
+# grcc-clean) and out of git and source packages: $(GRCC_KEYSTORE_DIR)/.
+# - release keystore: used when it exists AND its password is given, from the
+#   environment only: GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD (alias in
+#   GRCC_ANDROID_RELEASE_KEYSTORE_USER). APKs and the AAB upload signature use it.
+# - debug keystore: otherwise. A project copy keeps the same signature across
+#   image rebuilds (the image one is regenerated at each build).
+# - the image's own debug keystore if the project has none.
+# Godot reads GODOT_ANDROID_KEYSTORE_{RELEASE,DEBUG}_{PATH,USER,PASSWORD}; they
+# are passed to Docker by name (values never echoed) and can still be set
+# directly in the environment, which overrides all of the above.
+GRCC_KEYSTORE_DIR?=.keystore
+GRCC_ANDROID_DEBUG_KEYSTORE?=$(GRCC_KEYSTORE_DIR)/debug.keystore
+GRCC_ANDROID_DEBUG_KEYSTORE_USER?=androiddebugkey
+GRCC_ANDROID_DEBUG_KEYSTORE_PASSWORD?=android
+GRCC_ANDROID_RELEASE_KEYSTORE?=$(GRCC_KEYSTORE_DIR)/release.keystore
+GRCC_ANDROID_RELEASE_KEYSTORE_USER?=
+GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD?=
+
+# Paths as seen by Godot: the project is /build in the container.
+ifeq (,$(wildcard /opt/godot-rust-cross-compiler.txt))
+GRCC_BUILD_ROOT=/build
+else
+GRCC_BUILD_ROOT=$(CURDIR)
+endif
+
+ifneq (,$(wildcard $(GRCC_ANDROID_DEBUG_KEYSTORE)))
+GRCC_ANDROID_DEBUG_SIGNING_PATH=$(GRCC_BUILD_ROOT)/$(GRCC_ANDROID_DEBUG_KEYSTORE)
+GRCC_ANDROID_DEBUG_SIGNING_DESC=project debug keystore $(GRCC_ANDROID_DEBUG_KEYSTORE)
+else
+GRCC_ANDROID_DEBUG_SIGNING_PATH=/root/.android/debug.keystore
+GRCC_ANDROID_DEBUG_SIGNING_DESC=image debug keystore (no $(GRCC_ANDROID_DEBUG_KEYSTORE))
+endif
+export GODOT_ANDROID_KEYSTORE_DEBUG_PATH?=$(GRCC_ANDROID_DEBUG_SIGNING_PATH)
+export GODOT_ANDROID_KEYSTORE_DEBUG_USER?=$(GRCC_ANDROID_DEBUG_KEYSTORE_USER)
+export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD?=$(GRCC_ANDROID_DEBUG_KEYSTORE_PASSWORD)
+
+ifneq (,$(and $(wildcard $(GRCC_ANDROID_RELEASE_KEYSTORE)),$(GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD)))
+GRCC_ANDROID_SIGNING=release
+GRCC_ANDROID_SIGNING_DESC=release keystore $(GRCC_ANDROID_RELEASE_KEYSTORE) (alias $(GRCC_ANDROID_RELEASE_KEYSTORE_USER))
+export GODOT_ANDROID_KEYSTORE_RELEASE_PATH?=$(GRCC_BUILD_ROOT)/$(GRCC_ANDROID_RELEASE_KEYSTORE)
+export GODOT_ANDROID_KEYSTORE_RELEASE_USER?=$(GRCC_ANDROID_RELEASE_KEYSTORE_USER)
+export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD?=$(GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD)
+else
+GRCC_ANDROID_SIGNING=debug
+GRCC_ANDROID_SIGNING_DESC=$(GRCC_ANDROID_DEBUG_SIGNING_DESC)
+export GODOT_ANDROID_KEYSTORE_RELEASE_PATH?=$(GRCC_ANDROID_DEBUG_SIGNING_PATH)
+export GODOT_ANDROID_KEYSTORE_RELEASE_USER?=$(GRCC_ANDROID_DEBUG_KEYSTORE_USER)
+export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD?=$(GRCC_ANDROID_DEBUG_KEYSTORE_PASSWORD)
+endif
 
 # Exports run the Linux Godot editor of the image, which loads the GDExtension
 # for its own platform (else: "Can't open dynamic library" and extension classes
@@ -145,13 +195,27 @@ else
 GRCC_COPY_EDITOR_LIB=grcc-copy-linux-x64
 endif
 
+GRCC_DOCKER_SIGNING_ENV=-e GODOT_ANDROID_KEYSTORE_RELEASE_PATH -e GODOT_ANDROID_KEYSTORE_RELEASE_USER -e GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD -e GODOT_ANDROID_KEYSTORE_DEBUG_PATH -e GODOT_ANDROID_KEYSTORE_DEBUG_USER -e GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD
+
 ifeq (,$(wildcard /opt/godot-rust-cross-compiler.txt))
 GRCC_USE_DOCKER=yes
 GRCC_INVOKE_DOCKER_RUST=install -d $(GRCC_CROSS_COMPILER_CACHE_DIR)/git && install -d $(GRCC_CROSS_COMPILER_CACHE_DIR)/registry && docker run --platform linux/$(GRCC_DOCKER_ARCH) -v $$(pwd):/build -v$$(realpath $(GRCC_CROSS_COMPILER_CACHE_DIR)/git):/root/.cargo/git -v$$(realpath $(GRCC_CROSS_COMPILER_CACHE_DIR)/registry):/root/.cargo/registry
-GRCC_INVOKE_DOCKER_GODOT_EXPORT=docker run --platform linux/$(GRCC_DOCKER_ARCH) -v $$(pwd):/build -e GODOT_ANDROID_KEYSTORE_RELEASE_PATH -e GODOT_ANDROID_KEYSTORE_RELEASE_USER -e GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD $(GRCC_DOCKER_IMAGE)
+GRCC_INVOKE_DOCKER_GODOT_EXPORT=docker run --platform linux/$(GRCC_DOCKER_ARCH) -v $$(pwd):/build $(GRCC_DOCKER_SIGNING_ENV) $(GRCC_DOCKER_IMAGE)
+# Same, plus a persistent Gradle home (wrapper distribution + Maven dependencies).
+GRCC_INVOKE_DOCKER_GODOT_GRADLE=install -d $(GRCC_CROSS_COMPILER_CACHE_DIR)/gradle && docker run --platform linux/$(GRCC_DOCKER_ARCH) -v $$(pwd):/build -v$$(realpath $(GRCC_CROSS_COMPILER_CACHE_DIR)/gradle):/root/.gradle $(GRCC_DOCKER_SIGNING_ENV) $(GRCC_DOCKER_IMAGE)
 else
 GRCC_USE_DOCKER=no
 GRCC_INVOKE_DOCKER_GODOT_EXPORT=
+GRCC_INVOKE_DOCKER_GODOT_GRADLE=
+endif
+
+# Google Play needs an Android App Bundle, built by Godot's Gradle template.
+# Gradle's aapt2 only exists for x86_64 Linux, so the AAB is built with the
+# amd64 image only (on arm64 hosts: GRCC_DOCKER_ARCH=amd64, emulated).
+ifeq (amd64,$(GRCC_DOCKER_ARCH))
+GRCC_PKG_ANDROID_AAB=grcc-sign-android-aab
+else
+GRCC_PKG_ANDROID_AAB=grcc-skip-android-aab
 endif
 
 GRCC_NATIVE_DEBUG_WINDOWS_SRC=./rust/target/debug/$(GRCC_GODOT_RUST_LIB_NAME).dll
@@ -217,6 +281,8 @@ GRCC_EXPORT_DIR=export
 GRCC_EXPORT_WINDOWS_X64_PKG=$(GRCC_GAME_PKG_NAME)-windows-x64-v$(GRCC_GAME_PKG_VERSION)
 GRCC_EXPORT_WINDOWS_ARM64_PKG=$(GRCC_GAME_PKG_NAME)-windows-arm64-v$(GRCC_GAME_PKG_VERSION)
 GRCC_EXPORT_ANDROID_PKG=$(GRCC_GAME_PKG_NAME)-android-v$(GRCC_GAME_PKG_VERSION)
+GRCC_EXPORT_ANDROID_AAB_UNSIGNED=$(GRCC_EXPORT_ANDROID_PKG)-unsigned.aab
+GRCC_EXPORT_ANDROID_AAB=$(GRCC_EXPORT_ANDROID_PKG).aab
 GRCC_EXPORT_MACOSX_PKG=$(GRCC_GAME_PKG_NAME)-macosx-v$(GRCC_GAME_PKG_VERSION)
 GRCC_EXPORT_LINUX_X64_PKG=$(GRCC_GAME_PKG_NAME)-linux-x64-v$(GRCC_GAME_PKG_VERSION)
 GRCC_EXPORT_LINUX_ARM64_PKG=$(GRCC_GAME_PKG_NAME)-linux-arm64-v$(GRCC_GAME_PKG_VERSION)
@@ -423,7 +489,7 @@ grcc-copy-wasm: grcc-lib-wasm
 	cp $(GRCC_WASM_THREADS_SRC) $(GRCC_WASM_DST)$(GRCC_GODOT_RUST_LIB_NAME).threads.wasm
 	cp $(GRCC_WASM_NOTHREADS_SRC) $(GRCC_WASM_DST)$(GRCC_GODOT_RUST_LIB_NAME).wasm
 
-grcc-pkg-all: grcc-pkg-windows grcc-pkg-android grcc-pkg-macosx grcc-pkg-linux grcc-pkg-wasm grcc-pkg-source
+grcc-pkg-all: grcc-pkg-windows grcc-pkg-android $(GRCC_PKG_ANDROID_AAB) grcc-pkg-macosx grcc-pkg-linux grcc-pkg-wasm grcc-pkg-source
 
 # [TODO] report this bug, need to launch the export twice for it to work, else complains about missing lib
 GRCC_PKG_BUILDX2=godot/buildx2.sh
@@ -432,6 +498,8 @@ GRCC_PKG_BUILDX2=godot/buildx2.sh
 GRCC_EXPORT_PRESET_WINDOWS_X64?=Windows Desktop x64
 GRCC_EXPORT_PRESET_WINDOWS_ARM64?=Windows Desktop arm64
 GRCC_EXPORT_PRESET_ANDROID?=Android
+# Gradle build, export format AAB, "package/signed" off (see grcc-sign-android-aab)
+GRCC_EXPORT_PRESET_ANDROID_AAB?=Android AAB
 GRCC_EXPORT_PRESET_MACOSX?=macOS
 GRCC_EXPORT_PRESET_LINUX_X64?=Linux x64
 GRCC_EXPORT_PRESET_LINUX_ARM64?=Linux arm64
@@ -453,10 +521,96 @@ grcc-pkg-windows-arm64: grcc-copy-windows-arm64 $(GRCC_COPY_EDITOR_LIB)
 	mv godot/$(GRCC_GAME_PKG_NAME).exe godot/$(GRCC_GODOT_RUST_LIB_NAME).dll $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_ARM64_PKG)
 	cd $(GRCC_EXPORT_DIR) && zip -r $(GRCC_EXPORT_WINDOWS_ARM64_PKG).zip $(GRCC_EXPORT_WINDOWS_ARM64_PKG) && rm -rf $(GRCC_EXPORT_WINDOWS_ARM64_PKG)
 
-grcc-pkg-android: grcc-copy-android $(GRCC_COPY_EDITOR_LIB)
+# Tells which key Android exports will use; fails on a release keystore given
+# a password but no alias.
+grcc-check-android-signing:
+	@echo "grcc: Android signing: $(GRCC_ANDROID_SIGNING_DESC)"
+ifeq (release,$(GRCC_ANDROID_SIGNING))
+ifeq (,$(GRCC_ANDROID_RELEASE_KEYSTORE_USER))
+	@echo "grcc: GRCC_ANDROID_RELEASE_KEYSTORE_USER (key alias) is required with $(GRCC_ANDROID_RELEASE_KEYSTORE)" >&2
+	@exit 1
+endif
+else
+ifneq (,$(wildcard $(GRCC_ANDROID_RELEASE_KEYSTORE)))
+	@echo "grcc: $(GRCC_ANDROID_RELEASE_KEYSTORE) found but GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD is not set: not using it"
+endif
+endif
+
+grcc-pkg-android: grcc-check-android-signing grcc-copy-android $(GRCC_COPY_EDITOR_LIB)
 	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_ANDROID_PKG).apk godot/$(GRCC_EXPORT_ANDROID_PKG).apk
 	echo 'for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --export-release "$(GRCC_EXPORT_PRESET_ANDROID)" $(GRCC_EXPORT_ANDROID_PKG).apk ; done' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
 	install -d $(GRCC_EXPORT_DIR) && mv godot/$(GRCC_EXPORT_ANDROID_PKG).apk $(GRCC_EXPORT_DIR)
+
+define GRCC_AAB_ARM64_HOST_ERROR
+
+ERROR: Android App Bundles need the amd64 image.
+
+Godot's Gradle build uses aapt2, which Google only ships for x86_64 Linux.
+Run the AAB targets with the emulated amd64 image:
+
+  make grcc-sign-android-aab GRCC_DOCKER_ARCH=amd64
+
+endef
+export GRCC_AAB_ARM64_HOST_ERROR
+
+define GRCC_AAB_SKIPPED_NOTICE
+
+NOTICE: no Android App Bundle (.aab) was built: it needs the amd64 image and
+this host uses the $(GRCC_DOCKER_ARCH) one. For Google Play, run (emulated):
+
+  make grcc-sign-android-aab GRCC_DOCKER_ARCH=amd64
+
+endef
+export GRCC_AAB_SKIPPED_NOTICE
+
+# In grcc-pkg-all on non-amd64 hosts, instead of silently leaving the AAB out.
+grcc-skip-android-aab:
+	@echo "$$GRCC_AAB_SKIPPED_NOTICE"
+
+grcc-check-aab-host:
+ifeq (arm64,$(GRCC_DOCKER_ARCH))
+	@echo "$$GRCC_AAB_ARM64_HOST_ERROR"
+	@exit 1
+endif
+
+# Unsigned AAB: Godot's Gradle build (template reinstalled on each export so it
+# always matches the image's Godot), then checked with bundletool.
+grcc-pkg-android-aab: grcc-check-aab-host grcc-check-android-signing grcc-copy-android $(GRCC_COPY_EDITOR_LIB)
+	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED) godot/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED)
+	echo 'set -e ; for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --install-android-build-template --export-release "$(GRCC_EXPORT_PRESET_ANDROID_AAB)" $(GRCC_EXPORT_ANDROID_AAB_UNSIGNED) || test $$i = warmup ; done ; java -jar /opt/bundletool.jar validate --bundle=godot/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED)' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_GRADLE) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
+	install -d $(GRCC_EXPORT_DIR) && mv godot/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED) $(GRCC_EXPORT_DIR)
+
+# Upload signature only: with Play App Signing, Google signs what devices get,
+# but Play still requires the AAB to be signed with the registered upload key.
+# Uses GODOT_ANDROID_KEYSTORE_RELEASE_* (see GRCC_ANDROID_RELEASE_KEYSTORE); with
+# a debug keystore ("Android Debug" certificate) the AAB is left unsigned.
+define GRCC_AAB_SIGN_SCRIPT
+set -e
+in="$(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED)"
+out="$(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_ANDROID_AAB)"
+ks="$$GODOT_ANDROID_KEYSTORE_RELEASE_PATH"
+alias="$$GODOT_ANDROID_KEYSTORE_RELEASE_USER"
+rm -f "$$out"
+if [ ! -f "$$ks" ]; then
+    echo "grcc: upload keystore not found: $$ks" >&2
+    exit 1
+fi
+if keytool -list -v -keystore "$$ks" -alias "$$alias" -storepass:env GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD | grep -q "CN=Android Debug"; then
+    echo "grcc: $$ks is an Android debug key, which Google Play rejects."
+    echo "grcc: AAB left unsigned: $$in"
+    echo "grcc: to sign it, set GRCC_ANDROID_RELEASE_KEYSTORE_USER and GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD for $(GRCC_ANDROID_RELEASE_KEYSTORE)."
+    exit 0
+fi
+jarsigner -keystore "$$ks" -storepass:env GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD -keypass:env GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD -signedjar "$$out" "$$in" "$$alias"
+jarsigner -verify "$$out" > /dev/null
+echo "grcc: signed with upload key ($$alias): $$out"
+endef
+export GRCC_AAB_SIGN_SCRIPT
+
+GRCC_AAB_SIGN_BUILDSCRIPT=godot/aab-sign.sh
+
+grcc-sign-android-aab: grcc-pkg-android-aab
+	printf '%s\n' "$$GRCC_AAB_SIGN_SCRIPT" > $(GRCC_AAB_SIGN_BUILDSCRIPT) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_AAB_SIGN_BUILDSCRIPT) ; ret=$$? ; rm -f $(GRCC_AAB_SIGN_BUILDSCRIPT) ; exit $$ret
 
 grcc-pkg-macosx: grcc-copy-macosx $(GRCC_COPY_EDITOR_LIB)
 	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_MACOSX_PKG).zip godot/$(GRCC_EXPORT_MACOSX_PKG).zip
@@ -486,8 +640,16 @@ grcc-pkg-wasm: grcc-copy-wasm $(GRCC_COPY_EDITOR_LIB)
 	install -d $(GRCC_EXPORT_DIR) && mv godot/$(GRCC_EXPORT_WASM_PKG) $(GRCC_EXPORT_DIR)/
 	cd $(GRCC_EXPORT_DIR) && zip -r $(GRCC_EXPORT_WASM_PKG).zip $(GRCC_EXPORT_WASM_PKG) && rm -rf $(GRCC_EXPORT_WASM_PKG)
 
+# Signing keys must never end up in source packages: exclude the keystore
+# directory and any key file by extension, then fail if one slipped through.
+GRCC_PKG_SOURCE_EXCLUDES=--exclude=.git --exclude=$(GRCC_KEYSTORE_DIR) --exclude='*.keystore' --exclude='*.jks' --exclude=export --exclude=./target --exclude=rust/target --exclude=godot/.godot --exclude=godot/android --exclude=godot/gdnative
+GRCC_PKG_SOURCE_KEY_PATTERN=(^|/)($(notdir $(GRCC_KEYSTORE_DIR))/|[^/]*\.(keystore|jks)$$)
+
 grcc-pkg-source: .git/config grcc-clean-prepare
-	export REPO="$$(grep url .git/config | head -n 1 | cut -d = -f 2)" && install -d $(GRCC_EXPORT_DIR) && rm -f $(GRCC_EXPORT_DIR)/$(GRCC_GAME_REPO_NAME).tar && tar cf $(GRCC_EXPORT_DIR)/$(GRCC_GAME_REPO_NAME).tar --exclude=.git --exclude=export --exclude=rust/target --exclude=godot/.godot . && cd $(GRCC_EXPORT_DIR) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -f $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip && mkdir $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && cd $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && tar xf ../$(GRCC_GAME_REPO_NAME).tar && cd .. && rm $(GRCC_GAME_REPO_NAME).tar && tar czf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && zip -r $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION)
+	install -d $(GRCC_EXPORT_DIR) && rm -f $(GRCC_EXPORT_DIR)/$(GRCC_GAME_REPO_NAME).tar
+	tar cf $(GRCC_EXPORT_DIR)/$(GRCC_GAME_REPO_NAME).tar $(GRCC_PKG_SOURCE_EXCLUDES) .
+	if tar tf $(GRCC_EXPORT_DIR)/$(GRCC_GAME_REPO_NAME).tar | grep -E '$(GRCC_PKG_SOURCE_KEY_PATTERN)' ; then echo "grcc: signing keys found in source package, aborting" >&2 ; rm -f $(GRCC_EXPORT_DIR)/$(GRCC_GAME_REPO_NAME).tar ; exit 1 ; fi
+	cd $(GRCC_EXPORT_DIR) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -f $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip && mkdir $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && cd $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && tar xf ../$(GRCC_GAME_REPO_NAME).tar && cd .. && rm $(GRCC_GAME_REPO_NAME).tar && tar czf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).tar.gz $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && zip -r $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION).zip $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION) && rm -rf $(GRCC_GAME_REPO_NAME)-$(GRCC_GAME_REPO_VERSION)
 
 # Windows installers (NSIS)
 # -------------------------

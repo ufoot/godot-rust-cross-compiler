@@ -23,6 +23,13 @@
 	now calls "dmg dmg".
 	Entrypoint (tini + entrypoint.sh) gives root-owned files under /build
 	back to the host user on Linux.
+	grcc-pkg-android-aab / grcc-sign-android-aab: unsigned Gradle AAB for
+	Google Play, validated with bundletool, then upload-key signature
+	(amd64 image only); toy "Android AAB" preset.
+	Signing keys read from .keystore/ (release key when its password is in
+	the environment, else project debug key); excluded from source packages.
+	grcc-pkg-source also excludes *.keystore/*.jks, target/ caches and the
+	Gradle template, and fails if a key file still ends up in the archive.
 
 2021-01-30  Christian Mauduit <ufoot@ufoot.org>
 

@@ -67,3 +67,8 @@ godot/dmg-build.sh
 
 # crypto stuff
 *.idsig
+godot/aab-sign.sh
+*.keystore
+
+# Android signing keys (never commit)
+.keystore/
