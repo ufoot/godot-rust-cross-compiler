@@ -171,38 +171,78 @@ web.debug.threads.wasm32 = "res://gdnative/web/wasm32-unknown-emscripten/cctoy.t
 # ... (see file for complete list)
 ```
 
+Starting a New Project
+----------------------
+
+A project shares only **two files** with grcc, copied verbatim, plus thin
+wrappers it owns:
+
+| File | Origin | Role |
+|------|--------|------|
+| `grcc.mk` | copy from grcc | all build, check, export, signing and sync targets |
+| `grcc-ci.yml` | copy from grcc | GitLab CI jobs (lint, test, build, export stages) |
+| `Makefile` | wrapper (start from this repo's) | `GRCC_*` settings, then `include grcc.mk` |
+| `.gitlab-ci.yml` | wrapper (start from this repo's) | `include: - local: grcc-ci.yml`, then overrides |
+
+Steps:
+
+1. Copy `grcc.mk`, `grcc-ci.yml`, `Makefile` and `.gitlab-ci.yml` from this
+   repository; in `Makefile` set `GRCC_GAME_PKG_NAME`, `GRCC_GAME_PKG_VERSION`,
+   `GRCC_GODOT_RUST_LIB_NAME`, `GRCC_GAME_REPO_NAME`, `GRCC_GAME_PUBLISHER` and
+   the keystore file names.
+2. Rust workspace in `rust/`, GDExtension crate as `cdylib`, every crate using
+   `godot` with `features = ["experimental-wasm"]`, and in the GDExtension crate
+   `[features] nothreads = ["godot/experimental-wasm-nothreads"]` (forwarded to
+   other crates using `godot`).
+3. Godot project in `godot/`: copy `cctoy.gdextension` (rename, keep the
+   `res://gdnative/...` paths) and `export_presets.cfg` (change names, bundle
+   ids, versions). Presets must keep their names and be numbered `preset.0..N`
+   without gaps. In `project.godot` set
+   `rendering/textures/vram_compression/import_s3tc_bptc=true` and
+   `import_etc2_astc=true`. GDScript in `godot/scripts` (`GRCC_GODOT_SCRIPTS_DIR`).
+4. `.gitignore`: take this repository's (at least `export`, `target`,
+   `.keystore/`, `godot/gdnative`, `godot/android`, `godot/.godot`, the
+   `godot/*.sh` temporary scripts, `*.idsig`).
+5. Android keys in `.keystore/` (never committed) and, for CI, the variables
+   listed at the top of `grcc-ci.yml`.
+
+Later, `make sync GRCC_UPSTREAM_DIR=<grcc checkout>` updates the two shared
+files (`make sync-check` only compares). The very first time, or when coming
+from a `grcc.mk` older than 0.3.1, copy them by hand.
+
 Using the Makefile
 ------------------
 
-The `grcc.mk` file automates common tasks. Include it in your project's Makefile:
+A project Makefile only holds settings:
 
 ```makefile
-# Your Makefile
 GRCC_GAME_PKG_NAME=mygame
 GRCC_GAME_PKG_VERSION=1.0.0
 GRCC_GODOT_RUST_LIB_NAME=mygame
 GRCC_GAME_REPO_NAME=mygame
+GRCC_ALIASES=yes
 
 include grcc.mk
-
-all: grcc-all
-test: grcc-test
-clean: grcc-clean
-native: grcc-native
-cross: grcc-cross
-export: grcc-export
 ```
+
+`GRCC_ALIASES=yes` defines short names for the targets below (leave it unset
+if they clash with your own targets and use the `grcc-*` names).
 
 ### Available Targets
 
-| Target | Description |
-|--------|-------------|
-| `make native` | Build and test locally, copy library for local Godot |
-| `make cross` | Build for all cross-compilation targets |
-| `make export` | Build and export packages for all platforms |
-| `make test` | Run Rust tests |
-| `make grcc-sign-android-aab` | Google Play bundle: unsigned AAB via Gradle, then upload-key signature (amd64 image) |
-| `make clean` | Clean all build artifacts |
+| Target | `grcc-*` target | Description |
+|--------|-----------------|-------------|
+| `make native` | `grcc-native` | Test, build and copy the library for the local Godot |
+| `make lint` | `grcc-lint` | clippy (`GRCC_CLIPPY_ARGS`, default `-D warnings`), `cargo fmt --check`, gdlint + gdformat |
+| `make format` | `grcc-format` | `cargo fmt` + `gdformat` |
+| `make test` | `grcc-test` | Rust tests |
+| `make build` | `grcc-build` | debug + release builds (`debug`, `release`) |
+| `make cross` | `grcc-cross` | Build for all cross-compilation targets |
+| `make export` | `grcc-export` | Export packages for all platforms |
+| `make aab` | `grcc-sign-android-aab` | Google Play bundle: unsigned AAB via Gradle, then upload-key signature |
+| `make windows` / `linux` / `macosx` / `android` / `web` / `source` / `installer` / `dmg` | `grcc-pkg-*`, … | one platform |
+| `make sync` / `sync-check` | `grcc-sync` / `grcc-sync-check` | update / compare `grcc.mk` and `grcc-ci.yml` from `GRCC_UPSTREAM_DIR` |
+| `make clean` | `grcc-clean` | Clean all build artifacts |
 
 ### Individual Platform Targets
 
@@ -346,23 +386,26 @@ jobs:
       - run: make export
 ```
 
+For GitLab, include the shared template from `.gitlab-ci.yml`:
+
 ```yaml
-# GitLab CI example (see .gitlab-ci.yml in this repository for the full version)
-windows:
-  image: ufoot/godot-rust-cross-compiler:0.3.1-amd64
-  script:
-    - make grcc-installer-windows
-  artifacts:
-    paths:
-      - export/*.*
+include:
+  - local: grcc-ci.yml
+
+# project overrides, merged into the template jobs, e.g.:
+lint-godot:
+  allow_failure: true
 ```
 
-Use one job per platform (`grcc-installer-windows`, `grcc-pkg-linux`,
-`grcc-dmg-macosx`, `grcc-pkg-android`, `grcc-sign-android-aab`,
-`grcc-pkg-wasm`, `grcc-pkg-source`) rather than a single `make export`: the
-image plus release builds for every target and the Gradle build do not fit on
-the default GitLab.com runner (30 GB disk), and jobs run in parallel. Android
-jobs can recreate `.keystore/` from protected CI/CD variables.
+`grcc-ci.yml` runs `lint` (`lint-rust`, `format-rust`, `lint-godot`) → `test`
+(`test-rust`) → `build` (`build-rust-debug`, `build-rust-release`, `native`) →
+`export`, a stage starting only when the previous ones passed. Exports are one
+job per platform (`export-windows`, `export-linux`, `export-macosx`,
+`export-android-apk`, `export-android-aab`, `export-web`, `export-source`):
+all of them in a single job do not fit on the default GitLab.com runner (30 GB
+disk). Android jobs recreate the keystores with
+`make grcc-ci-restore-android-keystores` from the CI/CD variables documented
+at the top of the template.
 
 Exported Packages
 -----------------

@@ -1,0 +1,134 @@
+# GitLab CI template for godot-rust-cross-compiler (grcc) projects.
+#
+# Copy this file verbatim next to grcc.mk (keep both in sync with
+# `make grcc-sync`) and include it from the project's .gitlab-ci.yml:
+#
+#   include:
+#     - local: grcc-ci.yml
+#
+# Project specifics go in .gitlab-ci.yml after the include; keys merge with
+# the jobs below, e.g. to make a check non-blocking:
+#
+#   lint-godot:
+#     allow_failure: true
+#
+# Stages run in order and a stage starts only when every blocking job of the
+# previous ones passed, so packages are only made from checked code. Exports
+# are one job per platform: all of them in a single job do not fit on the
+# default GitLab.com runner (30 GB disk, 1 h timeout).
+#
+# Android signing keys are not in git. Define as CI/CD variables
+# (Settings > CI/CD > Variables, Protected + Masked and hidden):
+#   ANDROID_UPLOAD_KEYSTORE_B64             base64 of the release/upload keystore
+#   ANDROID_DEBUG_KEYSTORE_B64              base64 of the debug keystore (optional)
+#   GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD  password of the release keystore
+# Without them, APKs use the image debug key and the AAB stays unsigned.
+
+image: ufoot/godot-rust-cross-compiler:0.3.1-amd64
+
+stages:
+  - lint
+  - test
+  - build
+  - export
+
+# Rust checks run on the plain Rust image (small pull, no Godot needed).
+.grcc-rust:
+  image: rust:latest
+  before_script:
+    - rustc --version
+    - cargo --version
+
+lint-rust:
+  extends: .grcc-rust
+  stage: lint
+  script:
+    - rustup component add clippy
+    - make grcc-lint-rust
+
+format-rust:
+  extends: .grcc-rust
+  stage: lint
+  script:
+    - rustup component add rustfmt
+    - make grcc-format-check-rust
+
+lint-godot:
+  image: python:3.14
+  stage: lint
+  before_script:
+    - python --version
+  script:
+    - make grcc-setup-godot
+    - make grcc-lint-godot
+
+test-rust:
+  extends: .grcc-rust
+  stage: test
+  script:
+    - make grcc-test
+
+build-rust-debug:
+  extends: .grcc-rust
+  stage: build
+  script:
+    - make grcc-debug
+
+build-rust-release:
+  extends: .grcc-rust
+  stage: build
+  script:
+    - make grcc-release
+
+# Native build with the grcc image toolchain.
+native:
+  stage: build
+  script:
+    - make grcc-native
+
+.grcc-export:
+  stage: export
+  artifacts:
+    paths:
+      - export/*.*
+
+.grcc-export-android:
+  extends: .grcc-export
+  before_script:
+    - make grcc-ci-restore-android-keystores
+    - make grcc-check-android-signing
+
+export-windows:
+  extends: .grcc-export
+  script:
+    - make grcc-installer-windows
+
+export-linux:
+  extends: .grcc-export
+  script:
+    - make grcc-pkg-linux
+
+export-macosx:
+  extends: .grcc-export
+  script:
+    - make grcc-dmg-macosx
+
+export-android-apk:
+  extends: .grcc-export-android
+  script:
+    - make grcc-pkg-android
+
+export-android-aab:
+  extends: .grcc-export-android
+  script:
+    - make grcc-sign-android-aab
+
+export-web:
+  extends: .grcc-export
+  script:
+    - make grcc-pkg-wasm
+
+export-source:
+  extends: .grcc-export
+  script:
+    - make grcc-pkg-source

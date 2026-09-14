@@ -15,9 +15,26 @@
 #
 # Most settings below use ?= so a project Makefile can override them before
 # the include, e.g. GRCC_DOCKER_IMAGE, GRCC_GODOT_HEADLESS, GRCC_EXPORT_PRESET_*.
+#
+# A project shares two files with grcc, copied verbatim and kept in sync with
+# `make grcc-sync` (see GRCC_UPSTREAM_DIR): grcc.mk and grcc-ci.yml. Its own
+# Makefile only sets GRCC_* variables and includes grcc.mk (GRCC_ALIASES=yes
+# adds short target names), its .gitlab-ci.yml includes grcc-ci.yml.
 
 .PHONY: grcc-all
 .PHONY: grcc-test
+.PHONY: grcc-build
+.PHONY: grcc-lint
+.PHONY: grcc-lint-rust
+.PHONY: grcc-format
+.PHONY: grcc-format-rust
+.PHONY: grcc-format-check-rust
+.PHONY: grcc-setup-godot
+.PHONY: grcc-lint-godot
+.PHONY: grcc-format-godot
+.PHONY: grcc-ci-restore-android-keystores
+.PHONY: grcc-sync
+.PHONY: grcc-sync-check
 .PHONY: grcc-debug
 .PHONY: grcc-release
 .PHONY: grcc-clean
@@ -339,6 +356,41 @@ grcc-debug:
 grcc-release:
 	cd rust && cargo build --release
 
+grcc-build: grcc-debug grcc-release
+
+# Checks (run by the lint stage of grcc-ci.yml)
+# ---------------------------------------------
+
+# Arguments after "--" for clippy. Projects with known debt can relax it, e.g.
+# GRCC_CLIPPY_ARGS=-A clippy::some_lint
+GRCC_CLIPPY_ARGS?=-D warnings
+GRCC_GODOT_SCRIPTS_DIR?=godot/scripts
+GRCC_GDTOOLKIT_VERSION?=4.*
+
+grcc-lint: grcc-lint-rust grcc-format-check-rust grcc-lint-godot
+
+grcc-lint-rust:
+	cd rust && cargo clippy --all-targets -- $(GRCC_CLIPPY_ARGS)
+
+grcc-format-check-rust:
+	cd rust && cargo fmt --check
+
+grcc-format-rust:
+	cd rust && cargo fmt
+
+# GDScript tooling (gdtoolkit), installed with pip.
+grcc-setup-godot:
+	pip install "gdtoolkit==$(GRCC_GDTOOLKIT_VERSION)"
+
+grcc-lint-godot:
+	gdlint $(GRCC_GODOT_SCRIPTS_DIR)
+	gdformat --check $(GRCC_GODOT_SCRIPTS_DIR)
+
+grcc-format-godot:
+	gdformat $(GRCC_GODOT_SCRIPTS_DIR)
+
+grcc-format: grcc-format-rust grcc-format-godot
+
 grcc-clean: grcc-clean-prepare
 	rm -rf export
 
@@ -550,6 +602,14 @@ grcc-pkg-windows-arm64: grcc-copy-windows-arm64 $(GRCC_COPY_EDITOR_LIB)
 	mv godot/$(GRCC_GAME_PKG_NAME).exe godot/$(GRCC_GODOT_RUST_LIB_NAME).dll $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_WINDOWS_ARM64_PKG)
 	cd $(GRCC_EXPORT_DIR) && zip -r $(GRCC_EXPORT_WINDOWS_ARM64_PKG).zip $(GRCC_EXPORT_WINDOWS_ARM64_PKG) && rm -rf $(GRCC_EXPORT_WINDOWS_ARM64_PKG)
 
+# CI: signing keys are not in git; recreate them from base64 CI/CD variables
+# (read by the shell, never echoed): ANDROID_UPLOAD_KEYSTORE_B64 for
+# GRCC_ANDROID_RELEASE_KEYSTORE, ANDROID_DEBUG_KEYSTORE_B64 for
+# GRCC_ANDROID_DEBUG_KEYSTORE. Missing variables are skipped.
+grcc-ci-restore-android-keystores:
+	@if [ -n "$$ANDROID_UPLOAD_KEYSTORE_B64" ] ; then install -d $(dir $(GRCC_ANDROID_RELEASE_KEYSTORE)) && printf '%s' "$$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d > $(GRCC_ANDROID_RELEASE_KEYSTORE) && echo "grcc: restored $(GRCC_ANDROID_RELEASE_KEYSTORE)" ; else echo "grcc: ANDROID_UPLOAD_KEYSTORE_B64 not set" ; fi
+	@if [ -n "$$ANDROID_DEBUG_KEYSTORE_B64" ] ; then install -d $(dir $(GRCC_ANDROID_DEBUG_KEYSTORE)) && printf '%s' "$$ANDROID_DEBUG_KEYSTORE_B64" | base64 -d > $(GRCC_ANDROID_DEBUG_KEYSTORE) && echo "grcc: restored $(GRCC_ANDROID_DEBUG_KEYSTORE)" ; else echo "grcc: ANDROID_DEBUG_KEYSTORE_B64 not set" ; fi
+
 # Tells which key Android exports will use; fails on a release keystore given
 # a password but no alias.
 grcc-check-android-signing:
@@ -731,3 +791,60 @@ grcc-dmg-macosx: grcc-pkg-macosx
 	echo 'genisoimage -V "$(GRCC_DMG_VOLUME_NAME)" -D -R -apple -no-pad -o $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_MACOSX_PKG).cdr $(GRCC_EXPORT_DIR)/dmg-staging && \
 		dmg dmg $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_MACOSX_PKG).cdr $(GRCC_EXPORT_DIR)/$(GRCC_DMG_MACOSX)' > $(GRCC_DMG_BUILDSCRIPT) && chmod a+x $(GRCC_DMG_BUILDSCRIPT) && $(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh $(GRCC_DMG_BUILDSCRIPT) && rm $(GRCC_DMG_BUILDSCRIPT)
 	rm -rf $(GRCC_EXPORT_DIR)/dmg-staging $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_MACOSX_PKG).cdr
+
+# Sharing with projects
+# ---------------------
+
+# Files a project copies verbatim from grcc. `make grcc-sync` updates them from
+# a grcc checkout, `make grcc-sync-check` only reports differences.
+GRCC_UPSTREAM_DIR?=../godot-rust-cross-compiler
+GRCC_SYNCED_FILES=grcc.mk grcc-ci.yml
+
+grcc-sync:
+	@test -f $(GRCC_UPSTREAM_DIR)/grcc.mk || { echo "grcc: no grcc checkout in GRCC_UPSTREAM_DIR=$(GRCC_UPSTREAM_DIR)" >&2 ; exit 1 ; }
+	@for f in $(GRCC_SYNCED_FILES) ; do if cmp -s $(GRCC_UPSTREAM_DIR)/$$f $$f ; then echo "grcc: $$f up to date" ; else cp $(GRCC_UPSTREAM_DIR)/$$f $$f && echo "grcc: updated $$f" ; fi ; done
+
+grcc-sync-check:
+	@test -f $(GRCC_UPSTREAM_DIR)/grcc.mk || { echo "grcc: no grcc checkout in GRCC_UPSTREAM_DIR=$(GRCC_UPSTREAM_DIR)" >&2 ; exit 1 ; }
+	@ret=0 ; for f in $(GRCC_SYNCED_FILES) ; do if cmp -s $(GRCC_UPSTREAM_DIR)/$$f $$f ; then echo "grcc: $$f up to date" ; else echo "grcc: $$f differs from $(GRCC_UPSTREAM_DIR)/$$f" ; ret=1 ; fi ; done ; exit $$ret
+
+# Short target names
+# ------------------
+
+# GRCC_ALIASES=yes (set before the include) defines the usual short names, so a
+# project Makefile does not need to list them. Leave unset if they clash.
+ifeq (yes,$(GRCC_ALIASES))
+.PHONY: all native cross export clean doc test build debug release
+.PHONY: lint lint-rust format format-rust format-check-rust setup-godot lint-godot format-godot
+.PHONY: windows linux macosx android aab web source installer dmg sync sync-check
+
+all: grcc-all
+native: grcc-native
+cross: grcc-cross
+export: grcc-export
+clean: grcc-clean
+doc: grcc-doc
+test: grcc-test
+build: grcc-build
+debug: grcc-debug
+release: grcc-release
+lint: grcc-lint
+lint-rust: grcc-lint-rust
+format: grcc-format
+format-rust: grcc-format-rust
+format-check-rust: grcc-format-check-rust
+setup-godot: grcc-setup-godot
+lint-godot: grcc-lint-godot
+format-godot: grcc-format-godot
+windows: grcc-pkg-windows
+linux: grcc-pkg-linux
+macosx: grcc-pkg-macosx
+android: grcc-pkg-android
+aab: grcc-sign-android-aab
+web: grcc-pkg-wasm
+source: grcc-pkg-source
+installer: grcc-installer-windows
+dmg: grcc-dmg-macosx
+sync: grcc-sync
+sync-check: grcc-sync-check
+endif

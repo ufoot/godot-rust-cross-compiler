@@ -1,5 +1,5 @@
+use godot::classes::{ILabel, Label};
 use godot::prelude::*;
-use godot::classes::{Label, ILabel};
 
 struct CcToyExtension;
 
