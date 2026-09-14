@@ -124,8 +124,14 @@ export-android-aab:
   script:
     - make grcc-sign-android-aab
 
+# The web build compiles std (-Zbuild-std) and godot-ffi in release mode, twice
+# (threads/nothreads): it gets OOM-killed on the 8 GB small runner. The medium
+# runner (16 GB) is available on all GitLab.com tiers; self-hosted runners
+# without that tag can override with `export-web: tags: []`.
 export-web:
   extends: .grcc-export
+  tags:
+    - saas-linux-medium-amd64
   script:
     - make grcc-pkg-wasm
 

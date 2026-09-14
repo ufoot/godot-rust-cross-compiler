@@ -611,6 +611,24 @@ grcc-ci-restore-android-keystores:
 	@if [ -n "$$ANDROID_UPLOAD_KEYSTORE_B64" ] ; then install -d $(dir $(GRCC_ANDROID_RELEASE_KEYSTORE)) && printf '%s' "$$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d > $(GRCC_ANDROID_RELEASE_KEYSTORE) && echo "grcc: restored $(GRCC_ANDROID_RELEASE_KEYSTORE)" ; else echo "grcc: ANDROID_UPLOAD_KEYSTORE_B64 not set" ; fi
 	@if [ -n "$$ANDROID_DEBUG_KEYSTORE_B64" ] ; then install -d $(dir $(GRCC_ANDROID_DEBUG_KEYSTORE)) && printf '%s' "$$ANDROID_DEBUG_KEYSTORE_B64" | base64 -d > $(GRCC_ANDROID_DEBUG_KEYSTORE) && echo "grcc: restored $(GRCC_ANDROID_DEBUG_KEYSTORE)" ; else echo "grcc: ANDROID_DEBUG_KEYSTORE_B64 not set" ; fi
 
+# Opens the release keystore the way Godot does (keytool, store password, alias)
+# so a wrong password, alias or corrupt file fails early with keytool's message.
+# Prints the keystore SHA-256 (compare with `shasum -a 256 <keystore>` locally)
+# and whether the password has surrounding whitespace, never the password.
+define GRCC_ANDROID_KEYSTORE_CHECK_SCRIPT
+ks="$$GODOT_ANDROID_KEYSTORE_RELEASE_PATH"
+pw="$$GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD"
+if out=$$(keytool -list -keystore "$$ks" -alias "$$GODOT_ANDROID_KEYSTORE_RELEASE_USER" -storepass:env GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD 2>&1); then
+    echo "grcc: release keystore opens with the given password and alias"
+else
+    echo "grcc: keytool cannot use the release keystore: $$(printf '%s' "$$out" | grep -v '^\s*$$' | tail -n 1)" >&2
+    echo "grcc: keystore sha256: $$(sha256sum "$$ks" | cut -d ' ' -f 1) ($$(wc -c < "$$ks") bytes)" >&2
+    case "$$pw" in [[:space:]]*|*[[:space:]]) echo "grcc: the password starts or ends with whitespace (pasted newline?)" >&2 ;; esac
+    exit 1
+fi
+endef
+export GRCC_ANDROID_KEYSTORE_CHECK_SCRIPT
+
 # Tells which key Android exports will use; fails on a release keystore given
 # a password but no alias.
 grcc-check-android-signing:
@@ -620,6 +638,7 @@ ifeq (,$(GRCC_ANDROID_RELEASE_KEYSTORE_USER))
 	@echo "grcc: GRCC_ANDROID_RELEASE_KEYSTORE_USER (key alias) is required with $(GRCC_ANDROID_RELEASE_KEYSTORE)" >&2
 	@exit 1
 endif
+	@$(GRCC_INVOKE_DOCKER_GODOT_EXPORT) sh -c "$$GRCC_ANDROID_KEYSTORE_CHECK_SCRIPT"
 else
 ifneq (,$(wildcard $(GRCC_ANDROID_RELEASE_KEYSTORE)))
 	@echo "grcc: $(GRCC_ANDROID_RELEASE_KEYSTORE) found but GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD is not set: not using it"

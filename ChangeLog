@@ -39,6 +39,8 @@
 	grcc-format*, grcc-build, grcc-sync, grcc-ci-restore-android-keystores
 	targets, GRCC_ALIASES short names; toy passes clippy -D warnings, rustfmt
 	and gdtoolkit.
+	CI export-web runs on saas-linux-medium-amd64 (OOM on the 8 GB runner);
+	grcc-check-android-signing opens the release keystore with keytool.
 
 2021-01-30  Christian Mauduit <ufoot@ufoot.org>
 
