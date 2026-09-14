@@ -347,13 +347,22 @@ jobs:
 ```
 
 ```yaml
-# GitLab CI example
-build:
+# GitLab CI example (see .gitlab-ci.yml in this repository for the full version)
+windows:
   image: ufoot/godot-rust-cross-compiler:0.3.1-amd64
   script:
-    - make cross
-    - make export
+    - make grcc-installer-windows
+  artifacts:
+    paths:
+      - export/*.*
 ```
+
+Use one job per platform (`grcc-installer-windows`, `grcc-pkg-linux`,
+`grcc-dmg-macosx`, `grcc-pkg-android`, `grcc-sign-android-aab`,
+`grcc-pkg-wasm`, `grcc-pkg-source`) rather than a single `make export`: the
+image plus release builds for every target and the Gradle build do not fit on
+the default GitLab.com runner (30 GB disk), and jobs run in parallel. Android
+jobs can recreate `.keystore/` from protected CI/CD variables.
 
 Exported Packages
 -----------------

@@ -32,6 +32,8 @@
 	Gradle template, and fails if a key file still ends up in the archive.
 	On arm64 hosts the AAB export runs in the emulated amd64 image by default
 	(GRCC_AAB_EMULATE=no to skip); explicit notice when no AAB is built.
+	Gradle daemon disabled for AAB exports. CI split into one job per
+	platform (a single export job exceeds the 30 GB GitLab.com runner disk).
 
 2021-01-30  Christian Mauduit <ufoot@ufoot.org>
 

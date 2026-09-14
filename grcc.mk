@@ -600,10 +600,11 @@ ifneq ($(GRCC_AAB_DOCKER_ARCH),$(GRCC_DOCKER_ARCH))
 endif
 
 # Unsigned AAB: Godot's Gradle build (template reinstalled on each export so it
-# always matches the image's Godot), then checked with bundletool.
+# always matches the image's Godot; no Gradle daemon, so a failed warmup pass
+# cannot keep the build cache locked for the real one), then checked with bundletool.
 grcc-pkg-android-aab: grcc-check-aab-host grcc-check-android-signing grcc-copy-android $(GRCC_AAB_EDITOR_LIB)
 	rm -f $(GRCC_EXPORT_DIR)/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED) godot/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED)
-	echo 'set -e ; for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --install-android-build-template --export-release "$(GRCC_EXPORT_PRESET_ANDROID_AAB)" $(GRCC_EXPORT_ANDROID_AAB_UNSIGNED) || test $$i = warmup ; done ; java -jar /opt/bundletool.jar validate --bundle=godot/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED)' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_GRADLE) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
+	echo 'set -e ; export GRADLE_OPTS="$${GRADLE_OPTS:+$$GRADLE_OPTS }-Dorg.gradle.daemon=false" ; for i in warmup real ; do $(GRCC_GODOT_HEADLESS) --path godot --install-android-build-template --export-release "$(GRCC_EXPORT_PRESET_ANDROID_AAB)" $(GRCC_EXPORT_ANDROID_AAB_UNSIGNED) || test $$i = warmup ; done ; java -jar /opt/bundletool.jar validate --bundle=godot/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED)' > $(GRCC_PKG_BUILDX2) && chmod a+x $(GRCC_PKG_BUILDX2) && $(GRCC_INVOKE_DOCKER_GODOT_GRADLE) sh $(GRCC_PKG_BUILDX2) && rm $(GRCC_PKG_BUILDX2)
 	install -d $(GRCC_EXPORT_DIR) && mv godot/$(GRCC_EXPORT_ANDROID_AAB_UNSIGNED) $(GRCC_EXPORT_DIR)
 
 # Upload signature only: with Play App Signing, Google signs what devices get,

@@ -1,12 +1,70 @@
 image: ufoot/godot-rust-cross-compiler:0.3.1-amd64
 
-native:
-  script:
-    - make grcc-native
+# build: tests + native build. export: packages, only when every build job passed.
+stages:
+  - build
+  - export
 
-export:
-  script:
-    - make grcc-export
+# One job per platform: a single export job does not fit on the default
+# GitLab.com runner (30 GB disk, 1 h timeout) once every target is built.
+# Each job below gets its own runner and disk, and they run in parallel.
+
+.export:
+  stage: export
   artifacts:
     paths:
       - export/*.*
+
+# Android signing keys are not in git: recreate them from CI/CD variables
+# (Settings > CI/CD > Variables, Protected + Masked and hidden):
+#   ANDROID_UPLOAD_KEYSTORE_B64             base64 of .keystore/ufoot.keystore
+#   ANDROID_DEBUG_KEYSTORE_B64              base64 of .keystore/godot-debug.keystore (optional)
+#   GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD  password of ufoot.keystore
+# Without them, APKs use the image debug key and the AAB stays unsigned.
+.export-android:
+  extends: .export
+  before_script:
+    - mkdir -p .keystore
+    - if [ -n "$ANDROID_UPLOAD_KEYSTORE_B64" ]; then echo "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d > .keystore/ufoot.keystore; fi
+    - if [ -n "$ANDROID_DEBUG_KEYSTORE_B64" ]; then echo "$ANDROID_DEBUG_KEYSTORE_B64" | base64 -d > .keystore/godot-debug.keystore; fi
+    - make grcc-check-android-signing
+
+native:
+  stage: build
+  script:
+    - make grcc-native
+
+export-windows:
+  extends: .export
+  script:
+    - make grcc-installer-windows
+
+export-linux:
+  extends: .export
+  script:
+    - make grcc-pkg-linux
+
+export-macosx:
+  extends: .export
+  script:
+    - make grcc-dmg-macosx
+
+export-android-apk:
+  extends: .export-android
+  script:
+    - make grcc-pkg-android
+
+export-android-aab:
+  extends: .export-android
+  script:
+    - make grcc-sign-android-aab
+
+export-web:
+  extends: .export
+  script:
+    - make grcc-pkg-wasm
+
+export-source:
+  extends: .export
+  script:
+    - make grcc-pkg-source
