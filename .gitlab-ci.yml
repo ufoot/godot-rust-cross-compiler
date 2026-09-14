@@ -1,4 +1,4 @@
-# CI jobs come from grcc-ci.yml (copied verbatim from godot-rust-cross-compiler,
+# CI jobs come from .gitlab/ci/grcc.yml (copied verbatim from godot-rust-cross-compiler,
 # update with `make sync`). Project-specific overrides go below the include.
 include:
-  - local: grcc-ci.yml
+  - local: .gitlab/ci/grcc.yml

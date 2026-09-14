@@ -34,7 +34,7 @@
 	(GRCC_AAB_EMULATE=no to skip); explicit notice when no AAB is built.
 	Gradle daemon disabled for AAB exports. CI split into one job per
 	platform (a single export job exceeds the 30 GB GitLab.com runner disk).
-	Projects share grcc.mk and grcc-ci.yml (GitLab CI template, included
+	Projects share grcc.mk and .gitlab/ci/grcc.yml (GitLab CI template, included
 	locally) with thin Makefile/.gitlab-ci.yml wrappers: new grcc-lint*,
 	grcc-format*, grcc-build, grcc-sync, grcc-ci-restore-android-keystores
 	targets, GRCC_ALIASES short names; toy passes clippy -D warnings, rustfmt

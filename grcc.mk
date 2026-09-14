@@ -17,9 +17,10 @@
 # the include, e.g. GRCC_DOCKER_IMAGE, GRCC_GODOT_HEADLESS, GRCC_EXPORT_PRESET_*.
 #
 # A project shares two files with grcc, copied verbatim and kept in sync with
-# `make grcc-sync` (see GRCC_UPSTREAM_DIR): grcc.mk and grcc-ci.yml. Its own
-# Makefile only sets GRCC_* variables and includes grcc.mk (GRCC_ALIASES=yes
-# adds short target names), its .gitlab-ci.yml includes grcc-ci.yml.
+# `make grcc-sync` (see GRCC_UPSTREAM_DIR): grcc.mk and .gitlab/ci/grcc.yml.
+# Its own Makefile only sets GRCC_* variables and includes grcc.mk
+# (GRCC_ALIASES=yes adds short target names), its .gitlab-ci.yml includes
+# .gitlab/ci/grcc.yml.
 
 .PHONY: grcc-all
 .PHONY: grcc-test
@@ -358,7 +359,7 @@ grcc-release:
 
 grcc-build: grcc-debug grcc-release
 
-# Checks (run by the lint stage of grcc-ci.yml)
+# Checks (run by the lint stage of .gitlab/ci/grcc.yml)
 # ---------------------------------------------
 
 # Arguments after "--" for clippy. Projects with known debt can relax it, e.g.
@@ -798,11 +799,11 @@ grcc-dmg-macosx: grcc-pkg-macosx
 # Files a project copies verbatim from grcc. `make grcc-sync` updates them from
 # a grcc checkout, `make grcc-sync-check` only reports differences.
 GRCC_UPSTREAM_DIR?=../godot-rust-cross-compiler
-GRCC_SYNCED_FILES=grcc.mk grcc-ci.yml
+GRCC_SYNCED_FILES=grcc.mk .gitlab/ci/grcc.yml
 
 grcc-sync:
 	@test -f $(GRCC_UPSTREAM_DIR)/grcc.mk || { echo "grcc: no grcc checkout in GRCC_UPSTREAM_DIR=$(GRCC_UPSTREAM_DIR)" >&2 ; exit 1 ; }
-	@for f in $(GRCC_SYNCED_FILES) ; do if cmp -s $(GRCC_UPSTREAM_DIR)/$$f $$f ; then echo "grcc: $$f up to date" ; else cp $(GRCC_UPSTREAM_DIR)/$$f $$f && echo "grcc: updated $$f" ; fi ; done
+	@for f in $(GRCC_SYNCED_FILES) ; do if cmp -s $(GRCC_UPSTREAM_DIR)/$$f $$f ; then echo "grcc: $$f up to date" ; else install -d $$(dirname $$f) && cp $(GRCC_UPSTREAM_DIR)/$$f $$f && echo "grcc: updated $$f" ; fi ; done
 
 grcc-sync-check:
 	@test -f $(GRCC_UPSTREAM_DIR)/grcc.mk || { echo "grcc: no grcc checkout in GRCC_UPSTREAM_DIR=$(GRCC_UPSTREAM_DIR)" >&2 ; exit 1 ; }

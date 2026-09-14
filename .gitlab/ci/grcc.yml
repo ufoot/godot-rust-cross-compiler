@@ -1,10 +1,11 @@
 # GitLab CI template for godot-rust-cross-compiler (grcc) projects.
 #
-# Copy this file verbatim next to grcc.mk (keep both in sync with
-# `make grcc-sync`) and include it from the project's .gitlab-ci.yml:
+# Copy this file verbatim to .gitlab/ci/grcc.yml in the project (grcc.mk goes
+# at the root; keep both in sync with `make grcc-sync`) and include it from the
+# project's .gitlab-ci.yml:
 #
 #   include:
-#     - local: grcc-ci.yml
+#     - local: .gitlab/ci/grcc.yml
 #
 # Project specifics go in .gitlab-ci.yml after the include; keys merge with
 # the jobs below, e.g. to make a check non-blocking:

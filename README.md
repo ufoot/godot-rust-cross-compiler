@@ -180,13 +180,13 @@ wrappers it owns:
 | File | Origin | Role |
 |------|--------|------|
 | `grcc.mk` | copy from grcc | all build, check, export, signing and sync targets |
-| `grcc-ci.yml` | copy from grcc | GitLab CI jobs (lint, test, build, export stages) |
+| `.gitlab/ci/grcc.yml` | copy from grcc | GitLab CI jobs (lint, test, build, export stages) |
 | `Makefile` | wrapper (start from this repo's) | `GRCC_*` settings, then `include grcc.mk` |
-| `.gitlab-ci.yml` | wrapper (start from this repo's) | `include: - local: grcc-ci.yml`, then overrides |
+| `.gitlab-ci.yml` | wrapper (start from this repo's) | `include: - local: .gitlab/ci/grcc.yml`, then overrides |
 
 Steps:
 
-1. Copy `grcc.mk`, `grcc-ci.yml`, `Makefile` and `.gitlab-ci.yml` from this
+1. Copy `grcc.mk`, `.gitlab/ci/grcc.yml`, `Makefile` and `.gitlab-ci.yml` from this
    repository; in `Makefile` set `GRCC_GAME_PKG_NAME`, `GRCC_GAME_PKG_VERSION`,
    `GRCC_GODOT_RUST_LIB_NAME`, `GRCC_GAME_REPO_NAME`, `GRCC_GAME_PUBLISHER` and
    the keystore file names.
@@ -204,7 +204,7 @@ Steps:
    `.keystore/`, `godot/gdnative`, `godot/android`, `godot/.godot`, the
    `godot/*.sh` temporary scripts, `*.idsig`).
 5. Android keys in `.keystore/` (never committed) and, for CI, the variables
-   listed at the top of `grcc-ci.yml`.
+   listed at the top of `.gitlab/ci/grcc.yml`.
 
 Later, `make sync GRCC_UPSTREAM_DIR=<grcc checkout>` updates the two shared
 files (`make sync-check` only compares). The very first time, or when coming
@@ -241,7 +241,7 @@ if they clash with your own targets and use the `grcc-*` names).
 | `make export` | `grcc-export` | Export packages for all platforms |
 | `make aab` | `grcc-sign-android-aab` | Google Play bundle: unsigned AAB via Gradle, then upload-key signature |
 | `make windows` / `linux` / `macosx` / `android` / `web` / `source` / `installer` / `dmg` | `grcc-pkg-*`, … | one platform |
-| `make sync` / `sync-check` | `grcc-sync` / `grcc-sync-check` | update / compare `grcc.mk` and `grcc-ci.yml` from `GRCC_UPSTREAM_DIR` |
+| `make sync` / `sync-check` | `grcc-sync` / `grcc-sync-check` | update / compare `grcc.mk` and `.gitlab/ci/grcc.yml` from `GRCC_UPSTREAM_DIR` |
 | `make clean` | `grcc-clean` | Clean all build artifacts |
 
 ### Individual Platform Targets
@@ -390,14 +390,14 @@ For GitLab, include the shared template from `.gitlab-ci.yml`:
 
 ```yaml
 include:
-  - local: grcc-ci.yml
+  - local: .gitlab/ci/grcc.yml
 
 # project overrides, merged into the template jobs, e.g.:
 lint-godot:
   allow_failure: true
 ```
 
-`grcc-ci.yml` runs `lint` (`lint-rust`, `format-rust`, `lint-godot`) → `test`
+`.gitlab/ci/grcc.yml` runs `lint` (`lint-rust`, `format-rust`, `lint-godot`) → `test`
 (`test-rust`) → `build` (`build-rust-debug`, `build-rust-release`, `native`) →
 `export`, a stage starting only when the previous ones passed. Exports are one
 job per platform (`export-windows`, `export-linux`, `export-macosx`,
