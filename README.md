@@ -403,9 +403,11 @@ lint-godot:
 job per platform (`export-windows`, `export-linux`, `export-macosx`,
 `export-android-apk`, `export-android-aab`, `export-web`, `export-source`):
 all of them in a single job do not fit on the default GitLab.com runner (30 GB
-disk). `export-web` runs on the `saas-linux-medium-amd64` runner (16 GB RAM, all
-tiers): compiling std and godot-ffi for wasm gets OOM-killed on the 8 GB default
-(self-hosted runners without that tag: override with `tags: []`). Android jobs
+disk). `export-web` and `export-android-aab` run on the `saas-linux-medium-amd64`
+runner (16 GB RAM, 50 GB disk, all tiers): compiling std and godot-ffi for wasm
+gets OOM-killed on the 8 GB default, and the AAB (4 Android ABIs + Gradle)
+fills its 30 GB disk (self-hosted runners without that tag: override with
+`tags: []`). Android jobs
 recreate the keystores with
 `make grcc-ci-restore-android-keystores` from the CI/CD variables documented
 at the top of the template.

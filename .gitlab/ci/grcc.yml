@@ -119,15 +119,20 @@ export-android-apk:
   script:
     - make grcc-pkg-android
 
+# Image + release libs for 4 Android ABIs + the Gradle build overflow the 30 GB
+# small runner disk: use the medium runner (50 GB, all GitLab.com tiers).
 export-android-aab:
   extends: .grcc-export-android
+  tags:
+    - saas-linux-medium-amd64
   script:
     - make grcc-sign-android-aab
 
 # The web build compiles std (-Zbuild-std) and godot-ffi in release mode, twice
 # (threads/nothreads): it gets OOM-killed on the 8 GB small runner. The medium
 # runner (16 GB) is available on all GitLab.com tiers; self-hosted runners
-# without that tag can override with `export-web: tags: []`.
+# without that tag can override with `export-web: tags: []` (same for
+# export-android-aab).
 export-web:
   extends: .grcc-export
   tags:
