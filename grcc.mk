@@ -621,10 +621,10 @@ if [ ! -f "$$ks" ]; then
     echo "grcc: upload keystore not found: $$ks" >&2
     exit 1
 fi
-if keytool -list -v -keystore "$$ks" -alias "$$alias" -storepass:env GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD | grep -q "CN=Android Debug"; then
+if keytool -list -v -keystore "$$ks" -alias "$$alias" -storepass:env GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD 2>/dev/null | grep -q "CN=Android Debug"; then
     echo "grcc: $$ks is an Android debug key, which Google Play rejects."
     echo "grcc: AAB left unsigned: $$in"
-    echo "grcc: to sign it, set GRCC_ANDROID_RELEASE_KEYSTORE_USER and GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD for $(GRCC_ANDROID_RELEASE_KEYSTORE)."
+    echo "grcc: to sign it, export GRCC_ANDROID_RELEASE_KEYSTORE_PASSWORD (password of $(GRCC_ANDROID_RELEASE_KEYSTORE)$(if $(GRCC_ANDROID_RELEASE_KEYSTORE_USER),,, plus GRCC_ANDROID_RELEASE_KEYSTORE_USER for its alias))."
     exit 0
 fi
 jarsigner -keystore "$$ks" -storepass:env GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD -keypass:env GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD -signedjar "$$out" "$$in" "$$alias"
